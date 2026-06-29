@@ -1,9 +1,7 @@
 """
 WaveDesk - 해운 아침 브리핑
-BDI(쉬핑뉴스넷) + KCCI(한국해양진흥공사) + 해외뉴스 번역 + 국내뉴스
 """
-
-import subprocess, sys, re, xml.etree.ElementTree as ET, json, time
+import subprocess, sys, re, xml.etree.ElementTree as ET, json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -24,8 +22,7 @@ DATE_STR = NOW.strftime(f"%Y년 %m월 %d일 ({WEEKDAY})")
 TIME_STR = NOW.strftime("%H:%M")
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-      "AppleWebKit/537.36 (KHTML, like Gecko) "
-      "Chrome/124.0.0.0 Safari/537.36")
+      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 HEADERS = {
     "User-Agent": UA,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -45,42 +42,39 @@ def get_indices():
     base = {
         "BDI":  {"value": "—", "change": "", "label": "발틱운임지수",
                  "date": "", "url": "https://www.shippingnewsnet.com/sdata/page.html?term=1",
-                 "note": "매일 (발틱해운거래소, 쉬핑뉴스넷 제공)"},
+                 "note": "매일 · 쉬핑뉴스넷"},
         "KCCI": {"value": "—", "change": "", "label": "한국컨운임지수",
                  "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000",
-                 "note": "매주 월요일 14:00 (한국해양진흥공사)"},
+                 "note": "매주 월 14:00 · 한국해양진흥공사"},
     }
-
-    # ── BDI: 쉬핑뉴스넷 ──────────────────────────────────────────────
+    # BDI — 쉬핑뉴스넷
     try:
-        r = requests.get(
-            "https://www.shippingnewsnet.com/sdata/page.html?term=1",
-            headers=HEADERS, timeout=TIMEOUT)
+        r = requests.get("https://www.shippingnewsnet.com/sdata/page.html?term=1",
+                         headers=HEADERS, timeout=TIMEOUT)
         r.encoding = "utf-8"
         soup = BeautifulSoup(r.text, "lxml")
-        data_rows = []
+        rows = []
         for row in soup.select("table tr"):
             cols = [td.get_text(strip=True) for td in row.select("td")]
             if len(cols) >= 2 and re.match(r"\d{4}-\d{2}-\d{2}", cols[0]):
-                data_rows.append(cols)
-        if data_rows:
-            latest, prev = data_rows[0], data_rows[1] if len(data_rows) > 1 else None
+                rows.append(cols)
+        if rows:
+            l, p = rows[0], rows[1] if len(rows) > 1 else None
             chg = ""
-            if prev:
+            if p:
                 try:
-                    diff = int(latest[1].replace(",","")) - int(prev[1].replace(",",""))
+                    diff = int(l[1].replace(",","")) - int(p[1].replace(",",""))
                     chg = f"+{diff}" if diff >= 0 else str(diff)
                 except Exception:
                     pass
-            base["BDI"].update({"value": latest[1], "change": chg, "date": latest[0]})
+            base["BDI"].update({"value": l[1], "change": chg, "date": l[0]})
     except Exception as e:
         print(f"  [BDI 오류] {e}")
 
-    # ── KCCI: 한국해양진흥공사 메인 ──────────────────────────────────
+    # KCCI — 한국해양진흥공사 메인
     try:
-        r = requests.get(
-            "https://www.kobc.or.kr/ebz/shippinginfo/main.do",
-            headers=HEADERS, timeout=TIMEOUT)
+        r = requests.get("https://www.kobc.or.kr/ebz/shippinginfo/main.do",
+                         headers=HEADERS, timeout=TIMEOUT)
         r.encoding = "utf-8"
         soup = BeautifulSoup(r.text, "lxml")
         for a in soup.find_all("a", href=True):
@@ -122,10 +116,9 @@ def parse_rss(url, source, label, max_items=5):
 
 
 def fetch_google_news_ko():
-    """Google 뉴스 RSS - 한국어 해운 키워드 검색 (GitHub Actions 서버에서도 작동)"""
+    """Google 뉴스 RSS — 한국어 해운 키워드 (해외 서버 차단 없음)"""
     items = []
-    # 키워드별 RSS URL (Google 뉴스는 해외 서버에서도 차단 없음)
-    queries = ["해운+운임", "해운+물류", "컨테이너+운임"]
+    queries = ["해운+운임", "해운+물류+컨테이너", "벌크선+탱커+해운"]
     for q in queries:
         url = f"https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
         try:
@@ -134,45 +127,34 @@ def fetch_google_news_ko():
             for item in root.findall(".//item")[:5]:
                 title = (item.findtext("title") or "").strip()
                 link  = (item.findtext("link") or "").strip()
-                # Google 뉴스 링크는 리디렉션 URL — source 태그에서 언론사 추출
-                source_el = item.find("source")
-                src_name = source_el.text.strip() if source_el is not None else "국내뉴스"
+                src_el = item.find("source")
+                src_name = src_el.text.strip() if src_el is not None else "국내뉴스"
                 if title and link:
-                    items.append({
-                        "title": title, "title_ko": title,
-                        "url": link,
-                        "source": "구글뉴스", "label": src_name
-                    })
+                    items.append({"title": title, "title_ko": title,
+                                   "url": link, "source": "구글뉴스", "label": src_name})
         except Exception:
             pass
-        if len(items) >= 10:
+        if len(items) >= 12:
             break
     return items
 
 
 def translate_titles(news_list):
-    """해외 뉴스 제목을 Claude API로 일괄 번역"""
+    """해외 뉴스 제목 Claude API 번역"""
     foreign = [n for n in news_list if n["source"] in ("TradeWinds","Splash247","Hellenic") and not n["title_ko"]]
     if not foreign:
         return news_list
-
     titles = [n["title"] for n in foreign]
-    prompt = (
-        "아래 영문 해운 뉴스 제목들을 자연스러운 한국어로 번역해줘. "
-        "JSON 배열로만 응답해. 다른 말은 하지 마.\n\n"
-        + json.dumps(titles, ensure_ascii=False)
-    )
+    prompt = ("아래 영문 해운 뉴스 제목들을 자연스러운 한국어로 번역해줘. "
+              "JSON 배열로만 응답해. 다른 말은 하지 마.\n\n"
+              + json.dumps(titles, ensure_ascii=False))
     try:
         resp = requests.post(
             "https://api.anthropic.com/v1/messages",
             headers={"Content-Type": "application/json"},
-            json={
-                "model": "claude-sonnet-4-6",
-                "max_tokens": 1000,
-                "messages": [{"role": "user", "content": prompt}]
-            },
-            timeout=30
-        )
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1000,
+                  "messages": [{"role": "user", "content": prompt}]},
+            timeout=30)
         data = resp.json()
         text = "".join(b.get("text","") for b in data.get("content",[]) if b.get("type")=="text")
         text = re.sub(r"```json|```", "", text).strip()
@@ -192,9 +174,14 @@ def translate_titles(news_list):
 
 def get_news():
     news = []
-    news += parse_rss("https://services.tradewindsnews.com/api/feed/rss", "TradeWinds", "TradeWinds", 5)
-    news += parse_rss("https://splash247.com/feed/", "Splash247", "Splash247", 5)
-    news += parse_rss("https://www.hellenicshippingnews.com/feed/", "Hellenic", "Hellenic Shipping News", 4)
+    # 해외 (각 4~5건씩 총 10건)
+    news += parse_rss("https://services.tradewindsnews.com/api/feed/rss",
+                      "TradeWinds", "TradeWinds", 4)
+    news += parse_rss("https://splash247.com/feed/",
+                      "Splash247", "Splash247", 3)
+    news += parse_rss("https://www.hellenicshippingnews.com/feed/",
+                      "Hellenic", "Hellenic Shipping News", 3)
+    # 국내 — Google 뉴스 RSS (10건)
     news += fetch_google_news_ko()
 
     seen, result = set(), []
@@ -204,7 +191,6 @@ def get_news():
             seen.add(key)
             result.append(n)
 
-    result = result[:22]
     result = translate_titles(result)
     return result
 
@@ -238,7 +224,7 @@ def dir_cls(chg):
 
 
 def build_html(indices, news):
-    # 지수 카드 (BDI + KCCI 2개)
+    # 지수 카드
     idx_html = ""
     for key, d in indices.items():
         cls, arrow = dir_cls(d.get("change",""))
@@ -253,44 +239,57 @@ def build_html(indices, news):
         <div class="idx-key">{key}</div>
         <div class="idx-val">{d['value']}</div>
         <div class="idx-chg {cls}">{chg_str}</div>
-        {date_html}
-        {note_html}
+        {date_html}{note_html}
       </a>"""
 
-    # 뉴스 블록
-    source_order = ["TradeWinds","Splash247","Hellenic","구글뉴스"]
-    grouped = {s: [] for s in source_order}
-    for n in news:
-        if n["source"] in grouped:
-            grouped[n["source"]].append(n)
+    # 뉴스: 좌=국내(구글뉴스) / 우=해외
+    ko_news = [n for n in news if n["source"] == "구글뉴스"][:10]
+    en_news = [n for n in news if n["source"] != "구글뉴스"][:10]
 
-    news_html = ""
-    for src in source_order:
-        items = grouped[src]
-        if not items:
-            continue
-        st = SOURCE_STYLE[src]
-        src_url = SOURCE_URL[src]
+    def news_rows_html(items, show_tag=False):
         rows = ""
         for n in items:
             display = n.get("title_ko") or n["title"]
             display = display[:72] + ("…" if len(display) > 72 else "")
-            # 구글뉴스는 언론사명을 label로 표시
-            tag = f'<span class="news-src-tag">{n["label"]}</span>' if src == "구글뉴스" else ""
+            tag = f'<span class="news-src-tag">{n["label"]}</span>' if show_tag else ""
             rows += f"""
           <a class="news-row" href="{n['url']}" target="_blank" rel="noopener noreferrer">
             <span class="news-title">{tag}{display}</span>
             <span class="news-arrow">↗</span>
           </a>"""
-        block_label = "구글 뉴스 (한국 해운)" if src == "구글뉴스" else items[0]['label']
-        news_html += f"""
-      <div class="news-block">
-        <div class="src-header">
-          <span class="src-flag">{st['flag']}</span>
-          <a class="src-badge" href="{src_url}" target="_blank"
-             style="color:{st['fg']};background:{st['bg']}">{block_label}</a>
+        return rows
+
+    # 해외 뉴스 소스별 그룹
+    en_by_src = {}
+    for n in en_news:
+        en_by_src.setdefault(n["source"], []).append(n)
+
+    en_blocks = ""
+    for src, items in en_by_src.items():
+        st = SOURCE_STYLE.get(src, {"bg":"#f0f0f0","fg":"#333","flag":"🌐"})
+        en_blocks += f"""
+        <div class="src-mini-header">
+          <span>{st['flag']}</span>
+          <a href="{SOURCE_URL.get(src,'#')}" target="_blank"
+             style="color:{st['fg']};background:{st['bg']};font-size:.72rem;font-weight:600;padding:2px 7px;border-radius:4px;text-decoration:none">{items[0]['label']}</a>
         </div>
-        <div class="news-rows">{rows}
+        {news_rows_html(items)}"""
+
+    news_html = f"""
+      <div class="news-col">
+        <div class="news-col-header">
+          <span class="flag">🇰🇷</span> 국내 해운 뉴스
+        </div>
+        <div class="news-inner">
+          {news_rows_html(ko_news, show_tag=True)}
+        </div>
+      </div>
+      <div class="news-col">
+        <div class="news-col-header">
+          <span class="flag">🌐</span> 해외 해운 뉴스
+        </div>
+        <div class="news-inner">
+          {en_blocks}
         </div>
       </div>"""
 
@@ -304,62 +303,93 @@ def build_html(indices, news):
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;
       background:#f0f4f8;color:#1a1a2e;min-height:100vh}}
-.wrap{{max-width:960px;margin:0 auto;padding:2rem 1.25rem}}
+.wrap{{max-width:1100px;margin:0 auto;padding:2rem 1.25rem}}
+
+/* 헤더 */
 .header{{display:flex;justify-content:space-between;align-items:flex-end;
          margin-bottom:1.75rem;padding-bottom:1rem;border-bottom:2px solid #2563eb}}
 .brand-name{{font-size:1.5rem;font-weight:700;color:#1e3a8a;letter-spacing:-.5px}}
 .brand-sub{{font-size:.8rem;color:#6b7280;margin-left:10px}}
 .header-meta{{text-align:right;font-size:.78rem;color:#9ca3af;line-height:1.6}}
+
 .sec-label{{font-size:.75rem;font-weight:600;text-transform:uppercase;
             letter-spacing:.8px;color:#6b7280;margin-bottom:.6rem}}
-.idx-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:2rem}}
+
+/* 지수 */
+.idx-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:1rem}}
 .idx-card{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
-           padding:1.1rem 1.25rem;text-decoration:none;color:inherit;
+           padding:1rem 1.25rem;text-decoration:none;color:inherit;
            transition:border-color .15s;display:block}}
 .idx-card:hover{{border-color:#2563eb}}
 .idx-card.idx-unavail{{opacity:.45}}
 .idx-label{{font-size:.72rem;color:#9ca3af;margin-bottom:1px}}
-.idx-key{{font-size:.72rem;font-weight:700;color:#6b7280;margin-bottom:.35rem}}
+.idx-key{{font-size:.72rem;font-weight:700;color:#6b7280;margin-bottom:.3rem}}
 .idx-val{{font-size:1.7rem;font-weight:700;color:#111827}}
 .idx-chg{{font-size:.82rem;margin-top:.3rem}}
-.idx-date{{font-size:.7rem;color:#9ca3af;margin-top:.25rem}}
-.idx-note{{font-size:.68rem;color:#d1d5db;margin-top:.15rem}}
+.idx-date{{font-size:.7rem;color:#9ca3af;margin-top:.2rem}}
+.idx-note{{font-size:.68rem;color:#d1d5db;margin-top:.1rem}}
 .up{{color:#dc2626}}.dn{{color:#2563eb}}.neu{{color:#9ca3af}}
-.news-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:2rem}}
-.news-block{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}}
-.src-header{{display:flex;align-items:center;gap:8px;padding:.65rem 1rem;
-             border-bottom:1px solid #f3f4f6}}
-.src-flag{{font-size:.9rem}}
-.src-badge{{font-size:.73rem;font-weight:600;padding:2px 8px;border-radius:4px;
-            text-decoration:none}}
-.src-badge:hover{{opacity:.8}}
-.news-rows{{display:flex;flex-direction:column}}
+
+/* 지수 바로가기 배너 */
+.idx-links{{display:flex;gap:8px;margin-bottom:2rem;flex-wrap:wrap}}
+.idx-link-btn{{font-size:.75rem;font-weight:500;padding:5px 12px;border-radius:6px;
+               text-decoration:none;border:1px solid #e5e7eb;background:#fff;
+               color:#374151;transition:border-color .15s,background .15s}}
+.idx-link-btn:hover{{border-color:#2563eb;background:#f0f5ff;color:#1e3a8a}}
+
+/* 뉴스 */
+.news-grid{{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:2rem}}
+.news-col{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}}
+.news-col-header{{display:flex;align-items:center;gap:8px;padding:.75rem 1rem;
+                  background:#f8faff;border-bottom:1px solid #e5e7eb;
+                  font-size:.82rem;font-weight:600;color:#1e3a8a}}
+.news-inner{{display:flex;flex-direction:column}}
+.src-mini-header{{display:flex;align-items:center;gap:6px;
+                  padding:.4rem 1rem;background:#f9fafb;border-bottom:1px solid #f3f4f6}}
 .news-row{{display:flex;align-items:center;justify-content:space-between;
-           padding:.55rem 1rem;border-bottom:1px solid #f9fafb;
+           padding:.5rem 1rem;border-bottom:1px solid #f9fafb;
            text-decoration:none;color:inherit;gap:8px;transition:background .12s}}
 .news-row:last-child{{border-bottom:none}}
 .news-row:hover{{background:#f0f5ff}}
-.news-title{{font-size:.82rem;line-height:1.45;color:#111827;flex:1}}
-.news-src-tag{{font-size:.68rem;font-weight:600;color:#e65100;background:#fff3e0;
-               padding:1px 5px;border-radius:3px;margin-right:5px;white-space:nowrap;flex-shrink:0}}
+.news-title{{font-size:.81rem;line-height:1.45;color:#111827;flex:1}}
+.news-src-tag{{font-size:.67rem;font-weight:600;color:#e65100;background:#fff3e0;
+               padding:1px 5px;border-radius:3px;margin-right:5px;
+               white-space:nowrap;flex-shrink:0}}
 .news-arrow{{font-size:.8rem;color:#9ca3af;flex-shrink:0}}
-.links-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}}
+
+/* 주요 사이트 */
+.links-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}}
 .link-card{{background:#fff;border:1px solid #e5e7eb;border-radius:8px;
             padding:.75rem 1rem;text-decoration:none;color:inherit;transition:border-color .15s}}
 .link-card:hover{{border-color:#2563eb}}
 .link-card .lc-name{{font-size:.82rem;font-weight:600;color:#111827}}
 .link-card .lc-sub{{font-size:.72rem;color:#9ca3af;margin-top:2px}}
+
+/* SM 계열사 탭 */
+.affiliate-section{{margin-bottom:1.5rem}}
+.affiliate-title{{font-size:.75rem;font-weight:600;text-transform:uppercase;
+                  letter-spacing:.8px;color:#6b7280;margin-bottom:.6rem}}
+.affiliate-grid{{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}}
+.aff-card{{background:#1e3a8a;border-radius:8px;padding:.65rem .8rem;
+           text-decoration:none;transition:background .15s}}
+.aff-card:hover{{background:#1a56db}}
+.aff-name{{font-size:.78rem;font-weight:600;color:#fff}}
+.aff-desc{{font-size:.68rem;color:#93c5fd;margin-top:2px}}
+
 .footer{{font-size:.72rem;color:#d1d5db;text-align:center;
          padding-top:.75rem;border-top:1px solid #e5e7eb}}
-@media(max-width:640px){{
+
+@media(max-width:700px){{
   .idx-grid{{grid-template-columns:1fr}}
   .news-grid{{grid-template-columns:1fr}}
   .links-grid{{grid-template-columns:repeat(2,1fr)}}
+  .affiliate-grid{{grid-template-columns:repeat(2,1fr)}}
 }}
 </style>
 </head>
 <body>
 <div class="wrap">
+
   <div class="header">
     <div>
       <span class="brand-name">⚓ WaveDesk</span>
@@ -372,8 +402,17 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   <div class="idx-grid">{idx_html}
   </div>
 
+  <div class="idx-links">
+    <a class="idx-link-btn" href="https://surff.kr/indices" target="_blank">📈 SCFI · KCCI · CCFI — surff.kr</a>
+    <a class="idx-link-btn" href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">📊 SCFI · CCFI · BDI — 국가물류통합정보센터</a>
+    <a class="idx-link-btn" href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">📉 BDI · BCI · BPI — 쉬핑뉴스넷</a>
+    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">🇰🇷 KCCI — 한국해양진흥공사</a>
+    <a class="idx-link-btn" href="https://www.balticexchange.com/en/index.html" target="_blank">🌐 Baltic Exchange 공식</a>
+  </div>
+
   <div class="sec-label">📰 최신 해운 뉴스</div>
-  <div class="news-grid">{news_html}
+  <div class="news-grid">
+    {news_html}
   </div>
 
   <div class="sec-label">🔗 주요 사이트</div>
@@ -386,28 +425,55 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <div class="lc-name">쉬핑뉴스넷</div>
       <div class="lc-sub">국내 해운물류 뉴스</div>
     </a>
-    <a class="link-card" href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">
-      <div class="lc-name">쉬핑뉴스넷 해운지수</div>
-      <div class="lc-sub">BDI · BCI · BPI · BSI</div>
-    </a>
-    <a class="link-card" href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">
-      <div class="lc-name">한국해양진흥공사 KCCI</div>
-      <div class="lc-sub">한국 컨테이너 운임지수 (매주 월)</div>
+    <a class="link-card" href="https://www.kobc.or.kr/ebz/shippinginfo/main.do" target="_blank">
+      <div class="lc-name">한국해양진흥공사</div>
+      <div class="lc-sub">KCCI · 해운시황 보고서</div>
     </a>
     <a class="link-card" href="https://www.nlic.go.kr/nlic/transInPortCt.action" target="_blank">
       <div class="lc-name">국가물류통합정보센터</div>
       <div class="lc-sub">SCFI · CCFI · BDI</div>
     </a>
-    <a class="link-card" href="https://www.balticexchange.com/en/data/indices.html" target="_blank">
+    <a class="link-card" href="https://surff.kr/indices" target="_blank">
+      <div class="lc-name">surff.kr 운임지수</div>
+      <div class="lc-sub">SCFI · KCCI · CCFI 차트</div>
+    </a>
+    <a class="link-card" href="https://www.balticexchange.com/en/index.html" target="_blank">
       <div class="lc-name">Baltic Exchange</div>
       <div class="lc-sub">BDI 공식 사이트</div>
     </a>
   </div>
 
+  <div class="affiliate-section">
+    <div class="affiliate-title">🚢 SM그룹 해운 계열사</div>
+    <div class="affiliate-grid">
+      <a class="aff-card" href="http://www.korealines.co.kr" target="_blank">
+        <div class="aff-name">대한해운</div>
+        <div class="aff-desc">전용선 · 벌크 · 탱커</div>
+      </a>
+      <a class="aff-card" href="https://www.smlines.com/kr/" target="_blank">
+        <div class="aff-name">SM상선</div>
+        <div class="aff-desc">컨테이너 전문 선사</div>
+      </a>
+      <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
+        <div class="aff-name">대한상선</div>
+        <div class="aff-desc">벌크 · 종합자원 수송</div>
+      </a>
+      <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
+        <div class="aff-name">대한해운LNG</div>
+        <div class="aff-desc">LNG 전문 운송</div>
+      </a>
+      <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
+        <div class="aff-name">KLCSM</div>
+        <div class="aff-desc">선박관리 · 수리</div>
+      </a>
+    </div>
+  </div>
+
   <div class="footer">
     WaveDesk · 매일 08:00 KST 자동 업데이트 · GitHub Pages 호스팅<br>
-    BDI 출처: 쉬핑뉴스넷 · KCCI 출처: 한국해양진흥공사 · 해외 뉴스 제목은 Claude AI 번역
+    BDI 출처: 쉬핑뉴스넷 · KCCI 출처: 한국해양진흥공사 · 해외 뉴스 제목 Claude AI 번역
   </div>
+
 </div>
 </body>
 </html>"""
@@ -431,9 +497,10 @@ if __name__ == "__main__":
     idx_cnt = sum(1 for v in indices.values() if v["value"] != "—")
     print(f"  지수: {idx_cnt}개 수집")
     for k, v in indices.items():
-        print(f"    {k}: {v['value']} {v.get('change','')}  ({v.get('date','')})")
+        print(f"    {k}: {v['value']} {v.get('change','')} ({v.get('date','')})")
     ko_cnt = sum(1 for n in news if n["source"] == "구글뉴스")
-    print(f"  뉴스: 총 {len(news)}건 (국내 {ko_cnt}건)")
+    en_cnt = sum(1 for n in news if n["source"] != "구글뉴스")
+    print(f"  뉴스: 국내 {ko_cnt}건 / 해외 {en_cnt}건")
 
     html = build_html(indices, news)
     out  = Path(args.output) / "index.html"
