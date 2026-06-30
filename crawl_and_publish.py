@@ -235,8 +235,8 @@ def build_html(indices, news):
       </a>"""
 
     # 뉴스: 좌=국내(구글뉴스) / 우=해외
-    ko_news = [n for n in news if n["source"] == "구글뉴스"][:10]
-    en_news = [n for n in news if n["source"] == "해외뉴스"][:10]
+    ko_news = [n for n in news if n["source"] == "구글뉴스"][:3]
+    en_news = [n for n in news if n["source"] == "해외뉴스"][:3]
 
     def news_rows_html(items, show_tag=False):
         rows = ""
@@ -251,26 +251,12 @@ def build_html(indices, news):
           </a>"""
         return rows
 
-    # 해외 뉴스 소스별 그룹
-    en_by_src = {}
-    for n in en_news:
-        en_by_src.setdefault(n["source"], []).append(n)
-
-    en_blocks = ""
-    for src, items in en_by_src.items():
-        st = SOURCE_STYLE.get(src, {"bg":"#f0f0f0","fg":"#333","flag":"🌐"})
-        en_blocks += f"""
-        <div class="src-mini-header">
-          <span>{st['flag']}</span>
-          <a href="{SOURCE_URL.get(src,'#')}" target="_blank"
-             style="color:{st['fg']};background:{st['bg']};font-size:.72rem;font-weight:600;padding:2px 7px;border-radius:4px;text-decoration:none">{items[0]['label']}</a>
-        </div>
-        {news_rows_html(items)}"""
+    en_blocks = news_rows_html(en_news, show_tag=True)
 
     news_html = f"""
       <div class="news-col">
         <div class="news-col-header">
-          <span class="flag">🇰🇷</span> 국내 해운 뉴스
+          <span class="flag">📍</span> 국내 해운 뉴스
         </div>
         <div class="news-inner">
           {news_rows_html(ko_news, show_tag=True)}
@@ -296,20 +282,19 @@ def build_html(indices, news):
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;
       background:#f0f4f8;color:#1a1a2e;min-height:100vh}}
-.wrap{{max-width:1100px;margin:0 auto;padding:2rem 1.25rem}}
+.wrap{{max-width:1100px;margin:0 auto;padding:1.5rem 1.25rem}}
 
 /* 헤더 */
-.header{{display:flex;justify-content:space-between;align-items:flex-end;
-         margin-bottom:1.75rem;padding-bottom:1rem;border-bottom:2px solid #2563eb}}
-.brand-name{{font-size:1.5rem;font-weight:700;color:#1e3a8a;letter-spacing:-.5px}}
-.brand-sub{{font-size:.8rem;color:#6b7280;margin-left:10px}}
-.header-meta{{text-align:right;font-size:.78rem;color:#9ca3af;line-height:1.6}}
+.header{{display:flex;align-items:baseline;gap:8px;
+         margin-bottom:1rem;padding-bottom:.6rem;border-bottom:2px solid #2563eb}}
+.brand-name{{font-size:1.15rem;font-weight:700;color:#1e3a8a;letter-spacing:-.5px}}
+.brand-sub{{font-size:.75rem;color:#6b7280}}
 
 .sec-label{{font-size:.75rem;font-weight:600;text-transform:uppercase;
-            letter-spacing:.8px;color:#6b7280;margin-bottom:.6rem}}
+            letter-spacing:.8px;color:#6b7280;margin-bottom:.5rem}}
 
 /* 지수 */
-.idx-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:1rem}}
+.idx-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:.75rem}}
 .idx-card{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
            padding:1rem 1.25rem;text-decoration:none;color:inherit;
            transition:border-color .15s;display:block}}
@@ -413,11 +398,8 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 <div class="wrap">
 
   <div class="header">
-    <div>
-      <span class="brand-name">⚓ WaveDesk</span>
-      <span class="brand-sub">해운 아침 브리핑</span>
-    </div>
-    <div class="header-meta">{DATE_STR}<br>업데이트 {TIME_STR} KST</div>
+    <span class="brand-name">⚓ WaveDesk</span>
+    <span class="brand-sub">해운 아침 브리핑</span>
   </div>
 
   <div class="sec-label">📊 해운 시황 지수</div>
@@ -430,8 +412,8 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     <a class="idx-link-btn" href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">📉 BDI · BCI · BPI — 쉬핑뉴스넷</a>
     <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">📌 KCCI — 한국해양진흥공사</a>
     <a class="idx-link-btn" href="https://www.balticexchange.com/en/index.html" target="_blank">⚓ Baltic Exchange 공식</a>
-    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">📈 SCFI 공식 — 상하이해운거래소</a>
-    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">📈 CCFI 공식 — 상하이해운거래소</a>
+    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">🚢 SCFI 공식 — 상하이해운거래소</a>
+    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">🛳️ CCFI 공식 — 상하이해운거래소</a>
     <a class="idx-link-btn" href="https://www.freightos.com/freight-index/" target="_blank">📦 Freightos 글로벌 컨테이너 운임지수 (FBX)</a>
     <a class="idx-link-btn" href="https://www.tradlinx.com/ko/freight-index" target="_blank">📊 TradLinx 운임지수 종합 차트</a>
   </div>
@@ -456,20 +438,12 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <div class="lc-sub">KCCI · 해운시황 보고서</div>
     </a>
     <a class="link-card" href="http://www.maritimepress.co.kr/" target="_blank">
-      <div class="lc-name">해사신문</div>
-      <div class="lc-sub">국내 해운·항만 전문지</div>
+      <div class="lc-name">한국해운신문</div>
+      <div class="lc-sub">해운·조선·항만물류 뉴스</div>
     </a>
-    <a class="link-card" href="https://www.cnbnews.com/" target="_blank">
+    <a class="link-card" href="https://www.klnews.co.kr/" target="_blank">
       <div class="lc-name">물류신문</div>
       <div class="lc-sub">물류·해운 업계 뉴스</div>
-    </a>
-    <a class="link-card" href="https://www.koreashippingnews.com/" target="_blank">
-      <div class="lc-name">한국해운신문</div>
-      <div class="lc-sub">해운 업계 전문 뉴스</div>
-    </a>
-    <a class="link-card" href="https://www.bktimes.net/" target="_blank">
-      <div class="lc-name">부산경제진흥원 BK타임즈</div>
-      <div class="lc-sub">항만·물류 지역 뉴스</div>
     </a>
   </div>
 
@@ -520,7 +494,8 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   </div>
 
   <div class="footer">
-    WaveDesk · 매일 08:00 KST 자동 업데이트 · GitHub Pages 호스팅<br>
+    {DATE_STR} · 업데이트 {TIME_STR} KST<br>
+    WaveDesk · 매일 08:00 자동 업데이트 · GitHub Pages 호스팅<br>
     BDI 출처: 쉬핑뉴스넷 · KCCI 출처: 한국해양진흥공사 · 해외 뉴스 제목 Google 번역
   </div>
 
