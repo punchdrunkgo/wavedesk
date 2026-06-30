@@ -99,90 +99,70 @@ def get_indices():
 # 2. 뉴스 수집
 # ══════════════════════════════════════════════════════════════════════════
 
-def parse_rss(url, source, label, max_items=5):
+def fetch_google_news(query, lang, source, label, max_items=5):
+    """Google 뉴스 RSS — 한/영 모두 지원, 해외 서버 차단 없음"""
     items = []
     try:
+        if lang == "ko":
+            url = f"https://news.google.com/rss/search?q={query}&hl=ko&gl=KR&ceid=KR:ko"
+        else:
+            url = f"https://news.google.com/rss/search?q={query}&hl=en&gl=US&ceid=US:en"
         r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
         root = ET.fromstring(r.content)
         for item in root.findall(".//item")[:max_items]:
             title = (item.findtext("title") or "").strip()
-            link  = (item.findtext("link") or item.findtext("guid") or "").strip()
-            if title and link and link.startswith("http"):
-                items.append({"title": title, "title_ko": "",
-                               "url": link, "source": source, "label": label})
+            link  = (item.findtext("link") or "").strip()
+            src_el = item.find("source")
+            lbl = src_el.text.strip() if src_el is not None else label
+            if title and link:
+                items.append({"title": title, "title_ko": "" if lang == "en" else title,
+                               "url": link, "source": source, "label": lbl})
     except Exception:
         pass
     return items
 
 
-def fetch_google_news_ko():
-    """Google 뉴스 RSS — 한국어 해운 키워드 (해외 서버 차단 없음)"""
-    items = []
-    queries = ["해운+운임", "해운+물류+컨테이너", "벌크선+탱커+해운"]
-    for q in queries:
-        url = f"https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
-        try:
-            r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-            root = ET.fromstring(r.content)
-            for item in root.findall(".//item")[:5]:
-                title = (item.findtext("title") or "").strip()
-                link  = (item.findtext("link") or "").strip()
-                src_el = item.find("source")
-                src_name = src_el.text.strip() if src_el is not None else "국내뉴스"
-                if title and link:
-                    items.append({"title": title, "title_ko": title,
-                                   "url": link, "source": "구글뉴스", "label": src_name})
-        except Exception:
-            pass
-        if len(items) >= 12:
-            break
-    return items
+def gtranslate(text):
+    """Google 번역 비공식 API — API 키 불필요"""
+    try:
+        url = "https://translate.googleapis.com/translate_a/single"
+        params = {"client": "gtx", "sl": "en", "tl": "ko", "dt": "t", "q": text}
+        r = requests.get(url, params=params, headers=HEADERS, timeout=10)
+        data = r.json()
+        return "".join(seg[0] for seg in data[0] if seg[0])
+    except Exception:
+        return text
 
 
 def translate_titles(news_list):
-    """해외 뉴스 제목 Claude API 번역"""
-    foreign = [n for n in news_list if n["source"] in ("TradeWinds","Splash247","Hellenic") and not n["title_ko"]]
-    if not foreign:
-        return news_list
-    titles = [n["title"] for n in foreign]
-    prompt = ("아래 영문 해운 뉴스 제목들을 자연스러운 한국어로 번역해줘. "
-              "JSON 배열로만 응답해. 다른 말은 하지 마.\n\n"
-              + json.dumps(titles, ensure_ascii=False))
-    try:
-        resp = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"Content-Type": "application/json"},
-            json={"model": "claude-sonnet-4-6", "max_tokens": 1000,
-                  "messages": [{"role": "user", "content": prompt}]},
-            timeout=30)
-        data = resp.json()
-        text = "".join(b.get("text","") for b in data.get("content",[]) if b.get("type")=="text")
-        text = re.sub(r"```json|```", "", text).strip()
-        translated = json.loads(text)
-        fi = 0
-        for n in news_list:
-            if n["source"] in ("TradeWinds","Splash247","Hellenic") and not n["title_ko"]:
-                if fi < len(translated):
-                    n["title_ko"] = translated[fi]
-                    fi += 1
-    except Exception as e:
-        print(f"  [번역 오류] {e}")
-        for n in foreign:
-            n["title_ko"] = n["title"]
+    """해외 뉴스 제목 Google 번역 (API 키 불필요)"""
+    foreign = [n for n in news_list if n["source"] == "해외뉴스" and not n["title_ko"]]
+    for n in foreign:
+        n["title_ko"] = gtranslate(n["title"])
     return news_list
 
 
 def get_news():
     news = []
-    # 해외 (각 4~5건씩 총 10건)
-    news += parse_rss("https://services.tradewindsnews.com/api/feed/rss",
-                      "TradeWinds", "TradeWinds", 4)
-    news += parse_rss("https://splash247.com/feed/",
-                      "Splash247", "Splash247", 3)
-    news += parse_rss("https://www.hellenicshippingnews.com/feed/",
-                      "Hellenic", "Hellenic Shipping News", 3)
-    # 국내 — Google 뉴스 RSS (10건)
-    news += fetch_google_news_ko()
+    # 해외 — Google 뉴스 영어 RSS (총 10건)
+    en_queries = [
+        ("shipping freight rates", 5),
+        ("container shipping market", 3),
+        ("bulk carrier tanker shipping", 2),
+    ]
+    for q, cnt in en_queries:
+        got = fetch_google_news(q.replace(" ","+"), "en", "해외뉴스", "Shipping News", cnt)
+        news += got
+
+    # 국내 — Google 뉴스 한국어 RSS (총 10건)
+    ko_queries = [
+        ("해운+운임", 5),
+        ("해운+물류+컨테이너", 3),
+        ("벌크선+탱커+해운", 2),
+    ]
+    for q, cnt in ko_queries:
+        got = fetch_google_news(q, "ko", "구글뉴스", "국내뉴스", cnt)
+        news += got
 
     seen, result = set(), []
     for n in news:
@@ -200,16 +180,12 @@ def get_news():
 # ══════════════════════════════════════════════════════════════════════════
 
 SOURCE_STYLE = {
-    "TradeWinds": {"bg": "#e8f0fe", "fg": "#1a56db", "flag": "🌐"},
-    "Splash247":  {"bg": "#fce8e6", "fg": "#c0392b", "flag": "🌐"},
-    "Hellenic":   {"bg": "#e6f4ea", "fg": "#137333", "flag": "🌐"},
-    "구글뉴스":    {"bg": "#fff3e0", "fg": "#e65100", "flag": "🇰🇷"},
+    "해외뉴스": {"bg": "#e8f0fe", "fg": "#1a56db", "flag": "🌐"},
+    "구글뉴스": {"bg": "#fff3e0", "fg": "#e65100", "flag": "🇰🇷"},
 }
 SOURCE_URL = {
-    "TradeWinds": "https://www.tradewindsnews.com/latest",
-    "Splash247":  "https://splash247.com/",
-    "Hellenic":   "https://www.hellenicshippingnews.com/",
-    "구글뉴스":    "https://news.google.com/search?q=해운+운임&hl=ko&gl=KR&ceid=KR:ko",
+    "해외뉴스": "https://news.google.com/search?q=shipping+freight&hl=en&gl=US&ceid=US:en",
+    "구글뉴스": "https://news.google.com/search?q=해운+운임&hl=ko&gl=KR&ceid=KR:ko",
 }
 
 def dir_cls(chg):
@@ -244,7 +220,7 @@ def build_html(indices, news):
 
     # 뉴스: 좌=국내(구글뉴스) / 우=해외
     ko_news = [n for n in news if n["source"] == "구글뉴스"][:10]
-    en_news = [n for n in news if n["source"] != "구글뉴스"][:10]
+    en_news = [n for n in news if n["source"] == "해외뉴스"][:10]
 
     def news_rows_html(items, show_tag=False):
         rows = ""
@@ -299,6 +275,7 @@ def build_html(indices, news):
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WaveDesk · 해운 아침 브리핑</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚓</text></svg>">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;
@@ -379,6 +356,35 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .footer{{font-size:.72rem;color:#d1d5db;text-align:center;
          padding-top:.75rem;border-top:1px solid #e5e7eb}}
 
+/* 사용자 정의 링크 */
+.add-link-btn{{display:block;width:100%;margin-bottom:1.5rem;padding:.7rem;
+               background:#fff;border:1.5px dashed #cbd5e1;border-radius:8px;
+               color:#6b7280;font-size:.82rem;font-weight:600;cursor:pointer;
+               transition:border-color .15s,color .15s}}
+.add-link-btn:hover{{border-color:#2563eb;color:#2563eb}}
+#customLinksGrid:empty{{display:none}}
+#customLinksGrid{{margin-bottom:.75rem}}
+.custom-link-card{{position:relative}}
+.custom-remove-btn{{position:absolute;top:4px;right:4px;width:18px;height:18px;
+                    border-radius:50%;background:#f3f4f6;color:#9ca3af;
+                    border:none;font-size:.7rem;cursor:pointer;line-height:18px;
+                    text-align:center;padding:0}}
+.custom-remove-btn:hover{{background:#fee2e2;color:#dc2626}}
+
+.modal-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
+                z-index:100;align-items:center;justify-content:center}}
+.modal-overlay.open{{display:flex}}
+.modal-box{{background:#fff;border-radius:12px;padding:1.5rem;width:320px;max-width:90vw}}
+.modal-title{{font-size:.95rem;font-weight:700;color:#111827;margin-bottom:1rem}}
+.modal-input{{width:100%;padding:.6rem .8rem;border:1px solid #e5e7eb;border-radius:6px;
+              font-size:.85rem;margin-bottom:.6rem;font-family:inherit}}
+.modal-input:focus{{outline:none;border-color:#2563eb}}
+.modal-btns{{display:flex;gap:8px;margin-top:.5rem}}
+.modal-btn{{flex:1;padding:.55rem;border-radius:6px;border:none;
+            font-size:.82rem;font-weight:600;cursor:pointer}}
+.modal-btn-cancel{{background:#f3f4f6;color:#6b7280}}
+.modal-btn-save{{background:#2563eb;color:#fff}}
+
 @media(max-width:700px){{
   .idx-grid{{grid-template-columns:1fr}}
   .news-grid{{grid-template-columns:1fr}}
@@ -408,6 +414,10 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     <a class="idx-link-btn" href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">📉 BDI · BCI · BPI — 쉬핑뉴스넷</a>
     <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">🇰🇷 KCCI — 한국해양진흥공사</a>
     <a class="idx-link-btn" href="https://www.balticexchange.com/en/index.html" target="_blank">🌐 Baltic Exchange 공식</a>
+    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">🇨🇳 SCFI 공식 — 상하이해운거래소</a>
+    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">🇨🇳 CCFI 공식 — 상하이해운거래소</a>
+    <a class="idx-link-btn" href="https://www.freightos.com/freight-index/" target="_blank">📦 Freightos 글로벌 컨테이너 운임지수 (FBX)</a>
+    <a class="idx-link-btn" href="https://www.tradlinx.com/ko/freight-index" target="_blank">📊 TradLinx 운임지수 종합 차트</a>
   </div>
 
   <div class="sec-label">📰 최신 해운 뉴스</div>
@@ -441,6 +451,38 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <div class="lc-name">Baltic Exchange</div>
       <div class="lc-sub">BDI 공식 사이트</div>
     </a>
+    <a class="link-card" href="http://www.maritimepress.co.kr/" target="_blank">
+      <div class="lc-name">해사신문</div>
+      <div class="lc-sub">국내 해운·항만 전문지</div>
+    </a>
+    <a class="link-card" href="https://www.cnbnews.com/" target="_blank">
+      <div class="lc-name">물류신문</div>
+      <div class="lc-sub">물류·해운 업계 뉴스</div>
+    </a>
+    <a class="link-card" href="https://www.koreashippingnews.com/" target="_blank">
+      <div class="lc-name">한국해운신문</div>
+      <div class="lc-sub">해운 업계 전문 뉴스</div>
+    </a>
+    <a class="link-card" href="https://www.bktimes.net/" target="_blank">
+      <div class="lc-name">부산경제진흥원 BK타임즈</div>
+      <div class="lc-sub">항만·물류 지역 뉴스</div>
+    </a>
+  </div>
+
+  <div class="sec-label">⭐ 내가 추가한 사이트 <span style="font-weight:400;color:#9ca3af;text-transform:none;letter-spacing:0">(이 브라우저에만 저장됨)</span></div>
+  <div class="links-grid" id="customLinksGrid"></div>
+  <button id="addLinkBtn" class="add-link-btn">+ 사이트 추가</button>
+
+  <div id="addLinkModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">사이트 추가</div>
+      <input id="newLinkName" class="modal-input" placeholder="사이트 이름 (예: 내 즐겨찾기)">
+      <input id="newLinkUrl" class="modal-input" placeholder="URL (https://... 형식)">
+      <div class="modal-btns">
+        <button id="cancelLinkBtn" class="modal-btn modal-btn-cancel">취소</button>
+        <button id="saveLinkBtn" class="modal-btn modal-btn-save">추가</button>
+      </div>
+    </div>
   </div>
 
   <div class="affiliate-section">
@@ -454,27 +496,90 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
         <div class="aff-name">SM상선</div>
         <div class="aff-desc">컨테이너 전문 선사</div>
       </a>
-      <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
+      <a class="aff-card" href="http://www.smksc.co.kr/" target="_blank">
         <div class="aff-name">대한상선</div>
         <div class="aff-desc">벌크 · 종합자원 수송</div>
       </a>
-      <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
+      <a class="aff-card" href="https://klclng.com/" target="_blank">
         <div class="aff-name">대한해운LNG</div>
-        <div class="aff-desc">LNG 전문 운송</div>
+        <div class="aff-desc">LNG 전문 운송 (확인 필요)</div>
       </a>
       <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
         <div class="aff-name">KLCSM</div>
-        <div class="aff-desc">선박관리 · 수리</div>
+        <div class="aff-desc">선박관리 (독립 사이트 미확인)</div>
+      </a>
+      <a class="aff-card" href="http://www.cmship.co.kr/" target="_blank">
+        <div class="aff-name">창명해운</div>
+        <div class="aff-desc">벌크 · 특수화물</div>
       </a>
     </div>
   </div>
 
   <div class="footer">
     WaveDesk · 매일 08:00 KST 자동 업데이트 · GitHub Pages 호스팅<br>
-    BDI 출처: 쉬핑뉴스넷 · KCCI 출처: 한국해양진흥공사 · 해외 뉴스 제목 Claude AI 번역
+    BDI 출처: 쉬핑뉴스넷 · KCCI 출처: 한국해양진흥공사 · 해외 뉴스 제목 Google 번역
   </div>
 
 </div>
+
+<script>
+(function() {{
+  const STORAGE_KEY = 'wavedesk_custom_links';
+  const grid = document.getElementById('customLinksGrid');
+  const modal = document.getElementById('addLinkModal');
+  const addBtn = document.getElementById('addLinkBtn');
+  const cancelBtn = document.getElementById('cancelLinkBtn');
+  const saveBtn = document.getElementById('saveLinkBtn');
+  const nameInput = document.getElementById('newLinkName');
+  const urlInput = document.getElementById('newLinkUrl');
+
+  function getLinks() {{
+    try {{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }}
+    catch(e) {{ return []; }}
+  }}
+  function saveLinks(links) {{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
+  }}
+  function render() {{
+    const links = getLinks();
+    grid.innerHTML = '';
+    links.forEach((l, i) => {{
+      const a = document.createElement('a');
+      a.className = 'link-card custom-link-card';
+      a.href = l.url; a.target = '_blank';
+      a.innerHTML = `<div class="lc-name">${{l.name}}</div><div class="lc-sub">사용자 추가</div>`;
+      const btn = document.createElement('button');
+      btn.className = 'custom-remove-btn';
+      btn.textContent = '×';
+      btn.onclick = (e) => {{
+        e.preventDefault(); e.stopPropagation();
+        const updated = getLinks(); updated.splice(i, 1); saveLinks(updated); render();
+      }};
+      a.appendChild(btn);
+      grid.appendChild(a);
+    }});
+  }}
+  addBtn.onclick = () => {{ modal.classList.add('open'); nameInput.focus(); }};
+  cancelBtn.onclick = () => {{
+    modal.classList.remove('open'); nameInput.value = ''; urlInput.value = '';
+  }};
+  saveBtn.onclick = () => {{
+    let name = nameInput.value.trim();
+    let url = urlInput.value.trim();
+    if (!url) return;
+    if (!/^https?:\\/\\//.test(url)) url = 'https://' + url;
+    if (!name) name = url.replace(/^https?:\\/\\//, '').split('/')[0];
+    const links = getLinks();
+    links.push({{name, url}});
+    saveLinks(links);
+    nameInput.value = ''; urlInput.value = '';
+    modal.classList.remove('open');
+    render();
+  }};
+  modal.onclick = (e) => {{ if (e.target === modal) cancelBtn.onclick(); }};
+  render();
+}})();
+</script>
 </body>
 </html>"""
 
@@ -499,7 +604,7 @@ if __name__ == "__main__":
     for k, v in indices.items():
         print(f"    {k}: {v['value']} {v.get('change','')} ({v.get('date','')})")
     ko_cnt = sum(1 for n in news if n["source"] == "구글뉴스")
-    en_cnt = sum(1 for n in news if n["source"] != "구글뉴스")
+    en_cnt = sum(1 for n in news if n["source"] == "해외뉴스")
     print(f"  뉴스: 국내 {ko_cnt}건 / 해외 {en_cnt}건")
 
     html = build_html(indices, news)
