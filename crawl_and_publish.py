@@ -45,8 +45,18 @@ def get_indices():
                  "note": "매일 · 쉬핑뉴스넷"},
         "KCCI": {"value": "—", "change": "", "label": "한국컨운임지수",
                  "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000",
-                 "note": "매주 월 14:00 · 한국해양진흥공사"},
+                 "note": "매주 · 한국해양진흥공사"},
+        "KDCI": {"value": "—", "change": "", "label": "한국건화물선지수",
+                 "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000",
+                 "note": "매일 · 한국해양진흥공사"},
+        "NCFI": {"value": "—", "change": "", "label": "닝보컨운임지수",
+                 "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000",
+                 "note": "매주 · 한국해양진흥공사"},
     }
+    kcci_routes = []  # 노선별 세부 데이터
+    kdci_routes = []
+    ncfi_routes = []
+
     # BDI — 쉬핑뉴스넷
     try:
         r = requests.get("https://www.shippingnewsnet.com/sdata/page.html?term=1",
@@ -71,28 +81,75 @@ def get_indices():
     except Exception as e:
         print(f"  [BDI 오류] {e}")
 
-    # KCCI — 한국해양진흥공사 메인
+    # KDCI — 한국해양진흥공사 (KDCI + CAPE/PANAMAX/SUPRAMAX/HANDY)
     try:
-        r = requests.get("https://www.kobc.or.kr/ebz/shippinginfo/main.do",
+        r = requests.get("https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000",
                          headers=HEADERS, timeout=TIMEOUT)
         r.encoding = "utf-8"
         soup = BeautifulSoup(r.text, "lxml")
-        for a in soup.find_all("a", href=True):
-            t = a.get_text(" ", strip=True)
-            if "Container Composite Index" in t:
-                nums = re.findall(r"[\d,]+(?:\.\d+)?", t)
-                m_chg = re.search(r"([+\-][\d.]+%)", t)
-                if nums:
-                    base["KCCI"].update({
-                        "value": nums[0],
-                        "change": m_chg.group(1) if m_chg else "",
-                        "date": NOW.strftime("%Y-%m-%d")
-                    })
-                break
+        rows = []
+        for row in soup.select("table tr"):
+            cols = [td.get_text(strip=True) for td in row.select("td")]
+            if len(cols) >= 6 and re.match(r"\d{4}-\d{2}-\d{2}", cols[0]):
+                rows.append(cols)
+        if rows:
+            l, p = rows[0], rows[1] if len(rows) > 1 else None
+            chg = ""
+            if p:
+                try:
+                    diff = int(l[1].replace(",","")) - int(p[1].replace(",",""))
+                    chg = f"+{diff}" if diff >= 0 else str(diff)
+                except Exception:
+                    pass
+            base["KDCI"].update({"value": l[1], "change": chg, "date": l[0]})
+            labels = ["CAPE","PANAMAX","SUPRAMAX","HANDY"]
+            for i, name in enumerate(labels, start=2):
+                if len(l) > i:
+                    kdci_routes.append({"route": name, "value": l[i]})
+    except Exception as e:
+        print(f"  [KDCI 오류] {e}")
+
+    # KCCI — 한국해양진흥공사 (종합 + 노선별)
+    try:
+        r = requests.get("https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000",
+                         headers=HEADERS, timeout=TIMEOUT)
+        r.encoding = "utf-8"
+        soup = BeautifulSoup(r.text, "lxml")
+        for row in soup.select("table tr"):
+            cols = [td.get_text(strip=True) for td in row.select("td")]
+            if len(cols) >= 6:
+                code, route, cur, prev, wk = cols[1], cols[2], cols[4], cols[5], cols[6] if len(cols) > 6 else ""
+                if code == "KCCI":
+                    chg = ""
+                    m = re.search(r"([+\-]?\d+)\(([+\-][\d.]+%)\)", wk)
+                    if m:
+                        chg = m.group(2)
+                    base["KCCI"].update({"value": cur, "change": chg, "date": NOW.strftime("%Y-%m-%d")})
+                elif code and re.match(r"^[A-Z]{3,5}$", code) and cur:
+                    kcci_routes.append({"route": f"{route} ({code})", "value": cur})
     except Exception as e:
         print(f"  [KCCI 오류] {e}")
 
-    return base
+    # NCFI — 한국해양진흥공사 (종합 + 노선별)
+    try:
+        r = requests.get("https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000",
+                         headers=HEADERS, timeout=TIMEOUT)
+        r.encoding = "utf-8"
+        soup = BeautifulSoup(r.text, "lxml")
+        for row in soup.select("table tr"):
+            cols = [td.get_text(strip=True) for td in row.select("td")]
+            if len(cols) >= 4:
+                route, cur, prev, wk = cols[0], cols[1], cols[2], cols[3]
+                if not re.match(r"[\d.]+$", cur):
+                    continue
+                if route == "Composite Index":
+                    base["NCFI"].update({"value": cur, "change": wk, "date": NOW.strftime("%Y-%m-%d")})
+                elif route:
+                    ncfi_routes.append({"route": route, "value": cur})
+    except Exception as e:
+        print(f"  [NCFI 오류] {e}")
+
+    return base, kdci_routes, kcci_routes, ncfi_routes
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -215,8 +272,8 @@ def dir_cls(chg):
     return "neu", "—"
 
 
-def build_html(indices, news):
-    # 지수 카드
+def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news):
+    # 지수 카드 (종합지수 4개)
     idx_html = ""
     for key, d in indices.items():
         cls, arrow = dir_cls(d.get("change",""))
@@ -234,6 +291,30 @@ def build_html(indices, news):
         <div class="idx-chg {cls}">{chg_str}</div>
         {date_html}{note_html}
       </a>"""
+
+    # 세부 노선 아코디언 (KDCI/KCCI/NCFI)
+    def accordion_html(aid, title, routes, unit):
+        if not routes:
+            return ""
+        rows = "".join(
+            f'<div class="acc-row"><span class="acc-route">{r["route"]}</span>'
+            f'<span class="acc-val">{r["value"]}{unit}</span></div>'
+            for r in routes
+        )
+        return f"""
+      <div class="accordion">
+        <button class="acc-toggle" data-target="{aid}">
+          <span>{title} 세부 노선 보기 ({len(routes)}개)</span>
+          <span class="acc-arrow">▾</span>
+        </button>
+        <div class="acc-body" id="{aid}">{rows}</div>
+      </div>"""
+
+    accordions_html = (
+        accordion_html("acc-kdci", "KDCI 건화물선", kdci_routes, " pt") +
+        accordion_html("acc-kcci", "KCCI 컨테이너 노선별", kcci_routes, " pt") +
+        accordion_html("acc-ncfi", "NCFI 닝보 노선별", ncfi_routes, " pt")
+    )
 
     # 뉴스: 좌=국내(구글뉴스) / 우=해외
     ko_news = [n for n in news if n["source"] == "구글뉴스"][:8]
@@ -295,7 +376,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
             letter-spacing:.8px;color:#6b7280;margin-bottom:.5rem}}
 
 /* 지수 */
-.idx-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:.75rem}}
+.idx-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:.75rem}}
 .idx-card{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
            padding:1rem 1.25rem;text-decoration:none;color:inherit;
            transition:border-color .15s;display:block}}
@@ -311,6 +392,22 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 /* 지수 바로가기 배너 */
 .idx-links{{display:flex;gap:8px;margin-bottom:2rem;flex-wrap:wrap}}
+
+/* 아코디언 */
+.accordion{{background:#fff;border:1px solid #e5e7eb;border-radius:8px;
+            margin-bottom:8px;overflow:hidden}}
+.acc-toggle{{width:100%;display:flex;justify-content:space-between;align-items:center;
+            padding:.65rem 1rem;background:#fff;border:none;cursor:pointer;
+            font-size:.8rem;font-weight:600;color:#374151;font-family:inherit}}
+.acc-toggle:hover{{background:#f8faff}}
+.acc-arrow{{transition:transform .2s;color:#9ca3af;font-size:.75rem}}
+.acc-toggle.open .acc-arrow{{transform:rotate(180deg)}}
+.acc-body{{max-height:0;overflow:hidden;transition:max-height .25s ease}}
+.acc-body.open{{max-height:400px;overflow-y:auto}}
+.acc-row{{display:flex;justify-content:space-between;padding:.4rem 1rem;
+          font-size:.78rem;border-top:1px solid #f3f4f6}}
+.acc-route{{color:#6b7280}}
+.acc-val{{font-weight:600;color:#111827}}
 .idx-link-btn{{font-size:.75rem;font-weight:500;padding:5px 12px;border-radius:6px;
                text-decoration:none;border:1px solid #e5e7eb;background:#fff;
                color:#374151;transition:border-color .15s,background .15s}}
@@ -388,7 +485,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .modal-btn-save{{background:#2563eb;color:#fff}}
 
 @media(max-width:700px){{
-  .idx-grid{{grid-template-columns:1fr}}
+  .idx-grid{{grid-template-columns:repeat(2,1fr)}}
   .news-grid{{grid-template-columns:1fr}}
   .links-grid{{grid-template-columns:repeat(2,1fr)}}
   .affiliate-grid{{grid-template-columns:repeat(2,1fr)}}
@@ -406,6 +503,8 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   <div class="sec-label">📊 해운 시황 지수</div>
   <div class="idx-grid">{idx_html}
   </div>
+
+  {accordions_html}
 
   <div class="idx-links">
     <a class="idx-link-btn" href="https://surff.kr/indices" target="_blank">📈 SCFI · KCCI · CCFI — surff.kr</a>
@@ -577,6 +676,15 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   }};
   modal.onclick = (e) => {{ if (e.target === modal) cancelBtn.onclick(); }};
   render();
+
+  // 아코디언 토글
+  document.querySelectorAll('.acc-toggle').forEach(btn => {{
+    btn.addEventListener('click', () => {{
+      const body = document.getElementById(btn.dataset.target);
+      const isOpen = body.classList.toggle('open');
+      btn.classList.toggle('open', isOpen);
+    }});
+  }});
 }})();
 </script>
 </body>
@@ -595,18 +703,19 @@ if __name__ == "__main__":
     args = ap.parse_args()
 
     print(f"[WaveDesk] {DATE_STR} {TIME_STR} 크롤링 시작")
-    indices = get_indices()
-    news    = get_news()
+    indices, kdci_routes, kcci_routes, ncfi_routes = get_indices()
+    news = get_news()
 
     idx_cnt = sum(1 for v in indices.values() if v["value"] != "—")
     print(f"  지수: {idx_cnt}개 수집")
     for k, v in indices.items():
         print(f"    {k}: {v['value']} {v.get('change','')} ({v.get('date','')})")
+    print(f"  세부노선: KDCI {len(kdci_routes)}개 / KCCI {len(kcci_routes)}개 / NCFI {len(ncfi_routes)}개")
     ko_cnt = sum(1 for n in news if n["source"] == "구글뉴스")
     en_cnt = sum(1 for n in news if n["source"] == "해외뉴스")
     print(f"  뉴스: 국내 {ko_cnt}건 / 해외 {en_cnt}건")
 
-    html = build_html(indices, news)
+    html = build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news)
     out  = Path(args.output) / "index.html"
     out.write_text(html, encoding="utf-8")
     print(f"  HTML 저장: {out.resolve()}")
