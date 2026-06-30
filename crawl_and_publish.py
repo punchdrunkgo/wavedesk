@@ -235,8 +235,8 @@ def build_html(indices, news):
       </a>"""
 
     # 뉴스: 좌=국내(구글뉴스) / 우=해외
-    ko_news = [n for n in news if n["source"] == "구글뉴스"][:3]
-    en_news = [n for n in news if n["source"] == "해외뉴스"][:3]
+    ko_news = [n for n in news if n["source"] == "구글뉴스"][:8]
+    en_news = [n for n in news if n["source"] == "해외뉴스"][:8]
 
     def news_rows_html(items, show_tag=False):
         rows = ""
@@ -321,7 +321,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .news-col-header{{display:flex;align-items:center;gap:8px;padding:.75rem 1rem;
                   background:#f8faff;border-bottom:1px solid #e5e7eb;
                   font-size:.82rem;font-weight:600;color:#1e3a8a}}
-.news-inner{{display:flex;flex-direction:column}}
+.news-inner{{display:flex;flex-direction:column;max-height:330px;overflow-y:auto}}
 .src-mini-header{{display:flex;align-items:center;gap:6px;
                   padding:.4rem 1rem;background:#f9fafb;border-bottom:1px solid #f3f4f6}}
 .news-row{{display:flex;align-items:center;justify-content:space-between;
@@ -347,7 +347,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .affiliate-section{{margin-bottom:1.5rem}}
 .affiliate-title{{font-size:.75rem;font-weight:600;text-transform:uppercase;
                   letter-spacing:.8px;color:#6b7280;margin-bottom:.6rem}}
-.affiliate-grid{{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}}
+.affiliate-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}}
 .aff-card{{background:#1e3a8a;border-radius:8px;padding:.65rem .8rem;
            text-decoration:none;transition:background .15s}}
 .aff-card:hover{{background:#1a56db}}
@@ -423,7 +423,23 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     {news_html}
   </div>
 
-  <div class="sec-label">🔗 주요 사이트</div>
+  <div class="sec-label">⭐ 내가 추가한 사이트 <span style="font-weight:400;color:#9ca3af;text-transform:none;letter-spacing:0">(이 브라우저에만 저장됨)</span></div>
+  <div class="links-grid" id="customLinksGrid"></div>
+  <button id="addLinkBtn" class="add-link-btn">+ 사이트 추가</button>
+
+  <div id="addLinkModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">사이트 추가</div>
+      <input id="newLinkName" class="modal-input" placeholder="사이트 이름 (예: 내 즐겨찾기)">
+      <input id="newLinkUrl" class="modal-input" placeholder="URL (https://... 형식)">
+      <div class="modal-btns">
+        <button id="cancelLinkBtn" class="modal-btn modal-btn-cancel">취소</button>
+        <button id="saveLinkBtn" class="modal-btn modal-btn-save">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-label">🔗 주요 해운 뉴스 사이트</div>
   <div class="links-grid">
     <a class="link-card" href="https://www.ksg.co.kr/news/main_news.jsp" target="_blank">
       <div class="lc-name">코리아쉬핑가제트</div>
@@ -443,24 +459,12 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     </a>
     <a class="link-card" href="https://www.klnews.co.kr/" target="_blank">
       <div class="lc-name">물류신문</div>
-      <div class="lc-sub">물류·해운 업계 뉴스</div>
+      <div class="lc-sub">물류 전문 매체</div>
     </a>
-  </div>
-
-  <div class="sec-label">⭐ 내가 추가한 사이트 <span style="font-weight:400;color:#9ca3af;text-transform:none;letter-spacing:0">(이 브라우저에만 저장됨)</span></div>
-  <div class="links-grid" id="customLinksGrid"></div>
-  <button id="addLinkBtn" class="add-link-btn">+ 사이트 추가</button>
-
-  <div id="addLinkModal" class="modal-overlay">
-    <div class="modal-box">
-      <div class="modal-title">사이트 추가</div>
-      <input id="newLinkName" class="modal-input" placeholder="사이트 이름 (예: 내 즐겨찾기)">
-      <input id="newLinkUrl" class="modal-input" placeholder="URL (https://... 형식)">
-      <div class="modal-btns">
-        <button id="cancelLinkBtn" class="modal-btn modal-btn-cancel">취소</button>
-        <button id="saveLinkBtn" class="modal-btn modal-btn-save">추가</button>
-      </div>
-    </div>
+    <a class="link-card" href="https://maritime-executive.com/" target="_blank">
+      <div class="lc-name">Maritime Executive</div>
+      <div class="lc-sub">해외 해운 전문 미디어 (영문)</div>
+    </a>
   </div>
 
   <div class="affiliate-section">
@@ -480,7 +484,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       </a>
       <a class="aff-card" href="https://klclng.com/" target="_blank">
         <div class="aff-name">대한해운LNG</div>
-        <div class="aff-desc">LNG 전문 운송 (확인 필요)</div>
+        <div class="aff-desc">LNG 전문 운송</div>
       </a>
       <a class="aff-card" href="https://www.klcsm.co.kr/" target="_blank">
         <div class="aff-name">KLCSM</div>
@@ -489,6 +493,18 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <a class="aff-card" href="http://www.cmship.co.kr/" target="_blank">
         <div class="aff-name">창명해운</div>
         <div class="aff-desc">벌크 · 특수화물</div>
+      </a>
+      <a class="aff-card" href="http://www.smlgi.co.kr/index" target="_blank">
+        <div class="aff-name">SM상선 경인터미널</div>
+        <div class="aff-desc">항만 · 물류 서비스</div>
+      </a>
+      <a class="aff-card" href="http://www.smlgp.co.kr/index" target="_blank">
+        <div class="aff-name">SM상선 김포터미널</div>
+        <div class="aff-desc">항만 · 내륙물류</div>
+      </a>
+      <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
+        <div class="aff-name">SM그룹 (해운부문)</div>
+        <div class="aff-desc">그룹 공식 홈페이지</div>
       </a>
     </div>
   </div>
