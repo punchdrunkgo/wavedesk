@@ -40,18 +40,21 @@ TIMEOUT = 15
 
 def get_indices():
     base = {
-        "BDI":  {"value": "—", "change": "", "label": "발틱운임지수",
-                 "date": "", "url": "https://www.shippingnewsnet.com/sdata/page.html?term=1",
-                 "note": "매일 · 쉬핑뉴스넷"},
-        "KCCI": {"value": "—", "change": "", "label": "한국컨운임지수",
-                 "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000",
-                 "note": "매주 · 한국해양진흥공사"},
-        "KDCI": {"value": "—", "change": "", "label": "한국건화물선지수",
-                 "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000",
-                 "note": "매일 · 한국해양진흥공사"},
-        "NCFI": {"value": "—", "change": "", "label": "닝보컨운임지수",
-                 "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000",
-                 "note": "매주 · 한국해양진흥공사"},
+        "BDI":   {"value": "—", "change": "", "label": "발틱운임지수",
+                  "date": "", "url": "https://www.shippingnewsnet.com/sdata/page.html?term=1",
+                  "note": "매일 · 쉬핑뉴스넷"},
+        "KCCI":  {"value": "—", "change": "", "label": "한국컨운임지수",
+                  "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000",
+                  "note": "매주 · 한국해양진흥공사"},
+        "KDCI":  {"value": "—", "change": "", "label": "한국건화물선지수",
+                  "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000",
+                  "note": "매일 · 한국해양진흥공사"},
+        "NCFI":  {"value": "—", "change": "", "label": "닝보컨운임지수",
+                  "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000",
+                  "note": "매주 · 한국해양진흥공사"},
+        "VLSFO": {"value": "—", "change": "", "label": "벙커유(싱가포르)",
+                  "date": "", "url": "https://shipandbunker.com/prices/apac/sea/sg-sin-singapore",
+                  "note": "매일 · Ship&Bunker ($/MT)"},
     }
     kcci_routes = []  # 노선별 세부 데이터
     kdci_routes = []
@@ -149,6 +152,32 @@ def get_indices():
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
 
+    # VLSFO — Ship & Bunker (싱가포르)
+    try:
+        r = requests.get("https://shipandbunker.com/prices/apac/sea/sg-sin-singapore",
+                         headers=HEADERS, timeout=TIMEOUT)
+        soup = BeautifulSoup(r.text, "lxml")
+        # 가격 테이블에서 VLSFO 행 파싱
+        for row in soup.select("table tr"):
+            cols = [td.get_text(strip=True) for td in row.select("td")]
+            if len(cols) >= 3 and "VLSFO" in cols[0]:
+                val = cols[1].replace("$","").replace(",","").strip()
+                chg = cols[2].strip()
+                if re.match(r"[\d.]+", val):
+                    base["VLSFO"].update({
+                        "value": f"${val}",
+                        "change": chg,
+                        "date": NOW.strftime("%Y-%m-%d")
+                    })
+                break
+        # fallback: 페이지 텍스트에서 수치 추출
+        if base["VLSFO"]["value"] == "—":
+            m = re.search(r"VLSFO[^\d]{0,10}(\d{3,4}(?:\.\d+)?)", r.text)
+            if m:
+                base["VLSFO"].update({"value": f"${m.group(1)}", "date": NOW.strftime("%Y-%m-%d")})
+    except Exception as e:
+        print(f"  [VLSFO 오류] {e}")
+
     return base, kdci_routes, kcci_routes, ncfi_routes
 
 
@@ -169,21 +198,21 @@ def fetch_google_news(query, lang, source, label, max_items=8):
         root = ET.fromstring(r.content)
         today = NOW.date()
         yesterday = (NOW - timedelta(days=1)).date()
+        cutoff = NOW.replace(hour=0, minute=0, second=0) - timedelta(hours=12)  # 어제 오후 12시
         for item in root.findall(".//item")[:max_items * 2]:
             title = (item.findtext("title") or "").strip()
             link  = (item.findtext("link") or "").strip()
             pub   = (item.findtext("pubDate") or "").strip()
             src_el = item.find("source")
             lbl = src_el.text.strip() if src_el is not None else label
-            # 날짜 필터: 오늘/어제 기사만
             if pub:
                 try:
                     pub_dt = datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z")
                     pub_dt = pub_dt.replace(tzinfo=timezone.utc).astimezone(KST)
-                    if pub_dt.date() not in (today, yesterday):
+                    if pub_dt < cutoff:
                         continue
                 except Exception:
-                    pass  # 날짜 파싱 실패 시 포함 (필터 누락 방지)
+                    pass
             if title and link:
                 items.append({"title": title, "title_ko": "" if lang == "en" else title,
                                "url": link, "source": source, "label": lbl})
@@ -216,7 +245,7 @@ def translate_titles(news_list):
 
 def get_news():
     news = []
-    # 해외 — Google 뉴스 영어 RSS, 다양한 키워드로 여러 매체 자연 혼합 (총 10건, 오늘/어제만)
+    # 해외 — Google 뉴스 영어 RSS
     en_queries = [
         ("shipping freight rates", 4),
         ("container shipping market", 3),
@@ -227,13 +256,23 @@ def get_news():
         got = fetch_google_news(q.replace(" ","+"), "en", "해외뉴스", "Shipping News", cnt)
         news += got
 
-    # 국내 — Google 뉴스 한국어 RSS (총 10건, 오늘/어제만)
-    ko_queries = [
+    # 국내 — 핵심 해운 (우선순위 높음)
+    ko_core = [
         ("해운+운임", 5),
-        ("해운+물류+컨테이너", 3),
-        ("벌크선+탱커+해운", 2),
+        ("해운+물류+컨테이너", 4),
+        ("벌크선+탱커+해운", 3),
+        ("컨테이너선+운임", 3),
+        ("해상운임+물동량", 3),
     ]
-    for q, cnt in ko_queries:
+    # 국내 — 관련 분야 (선박·조선·수산·원양 등)
+    ko_related = [
+        ("조선+선박+수주", 3),
+        ("원양어선+수산", 2),
+        ("LNG선+벙커링", 2),
+        ("항만+물류+수출", 2),
+        ("선사+해운사", 2),
+    ]
+    for q, cnt in ko_core + ko_related:
         got = fetch_google_news(q, "ko", "구글뉴스", "국내뉴스", cnt)
         news += got
 
@@ -293,27 +332,38 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news):
       </a>"""
 
     # 세부 노선 아코디언 (KDCI/KCCI/NCFI)
-    def accordion_html(aid, title, routes, unit):
+    def accordion_html(aid, title, routes, unit, src_url):
         if not routes:
             return ""
-        rows = "".join(
-            f'<div class="acc-row"><span class="acc-route">{r["route"]}</span>'
-            f'<span class="acc-val">{r["value"]}{unit}</span></div>'
-            for r in routes
-        )
+        cells = ""
+        for r in routes:
+            chg = r.get("change","")
+            cls, arrow = dir_cls(chg)
+            chg_str = f'<span class="acc-chg {cls}">{arrow} {chg}</span>' if chg else ""
+            cells += (f'<div class="acc-cell">'
+                      f'<div class="acc-route">{r["route"]}</div>'
+                      f'<div class="acc-val">{r["value"]}{unit} {chg_str}</div>'
+                      f'</div>')
         return f"""
       <div class="accordion">
-        <button class="acc-toggle" data-target="{aid}">
-          <span>{title} 세부 노선 보기 ({len(routes)}개)</span>
-          <span class="acc-arrow">▾</span>
-        </button>
-        <div class="acc-body" id="{aid}">{rows}</div>
+        <div class="acc-header">
+          <button class="acc-toggle" data-target="{aid}">
+            <span>{title} 세부 노선 ({len(routes)}개) <span class="acc-arrow">▾</span></span>
+          </button>
+          <a class="acc-link-btn" href="{src_url}" target="_blank">표 바로가기 ↗</a>
+        </div>
+        <div class="acc-body" id="{aid}">
+          <div class="acc-grid">{cells}</div>
+        </div>
       </div>"""
 
     accordions_html = (
-        accordion_html("acc-kdci", "KDCI 건화물선", kdci_routes, " pt") +
-        accordion_html("acc-kcci", "KCCI 컨테이너 노선별", kcci_routes, " pt") +
-        accordion_html("acc-ncfi", "NCFI 닝보 노선별", ncfi_routes, " pt")
+        accordion_html("acc-kdci", "KDCI 건화물선", kdci_routes, " pt",
+                       "https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000") +
+        accordion_html("acc-kcci", "KCCI 컨테이너 노선별", kcci_routes, " pt",
+                       "https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000") +
+        accordion_html("acc-ncfi", "NCFI 닝보 노선별", ncfi_routes, " pt",
+                       "https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000")
     )
 
     # 뉴스: 좌=국내(구글뉴스) / 우=해외
@@ -376,7 +426,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
             letter-spacing:.8px;color:#6b7280;margin-bottom:.5rem}}
 
 /* 지수 */
-.idx-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:.75rem}}
+.idx-grid{{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:.75rem}}
 .idx-card{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
            padding:1rem 1.25rem;text-decoration:none;color:inherit;
            transition:border-color .15s;display:block}}
@@ -393,21 +443,35 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 /* 지수 바로가기 배너 */
 .idx-links{{display:flex;gap:8px;margin-bottom:2rem;flex-wrap:wrap}}
 
+/* 탭 카테고리 */
+.idx-tab-bar{{display:flex;gap:6px;margin-bottom:8px}}
+.idx-tab{{padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;
+           font-size:.78rem;font-weight:600;color:#6b7280;cursor:pointer;font-family:inherit}}
+.idx-tab.active{{background:#2563eb;color:#fff;border-color:#2563eb}}
+.idx-tab-panel{{display:none;flex-wrap:wrap;gap:8px;margin-bottom:1.5rem}}
+.idx-tab-panel.active{{display:flex}}
+
 /* 아코디언 */
 .accordion{{background:#fff;border:1px solid #e5e7eb;border-radius:8px;
             margin-bottom:8px;overflow:hidden}}
-.acc-toggle{{width:100%;display:flex;justify-content:space-between;align-items:center;
-            padding:.65rem 1rem;background:#fff;border:none;cursor:pointer;
-            font-size:.8rem;font-weight:600;color:#374151;font-family:inherit}}
-.acc-toggle:hover{{background:#f8faff}}
-.acc-arrow{{transition:transform .2s;color:#9ca3af;font-size:.75rem}}
+.acc-header{{display:flex;justify-content:space-between;align-items:center;
+             padding:.5rem 1rem;background:#f8faff;border-bottom:1px solid #e5e7eb}}
+.acc-toggle{{background:none;border:none;cursor:pointer;font-size:.8rem;
+             font-weight:600;color:#374151;font-family:inherit;padding:0;text-align:left}}
+.acc-toggle:hover{{color:#2563eb}}
+.acc-arrow{{transition:transform .2s;color:#9ca3af;font-size:.75rem;margin-left:4px}}
 .acc-toggle.open .acc-arrow{{transform:rotate(180deg)}}
+.acc-link-btn{{font-size:.72rem;padding:3px 10px;border:1px solid #2563eb;
+               border-radius:5px;color:#2563eb;text-decoration:none;white-space:nowrap}}
+.acc-link-btn:hover{{background:#2563eb;color:#fff}}
 .acc-body{{max-height:0;overflow:hidden;transition:max-height .25s ease}}
-.acc-body.open{{max-height:400px;overflow-y:auto}}
-.acc-row{{display:flex;justify-content:space-between;padding:.4rem 1rem;
-          font-size:.78rem;border-top:1px solid #f3f4f6}}
-.acc-route{{color:#6b7280}}
-.acc-val{{font-weight:600;color:#111827}}
+.acc-body.open{{max-height:300px}}
+.acc-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:.6rem 1rem}}
+.acc-cell{{background:#f9fafb;border-radius:6px;padding:.45rem .7rem}}
+.acc-route{{font-size:.72rem;color:#6b7280;margin-bottom:2px}}
+.acc-val{{font-size:.82rem;font-weight:600;color:#111827}}
+.acc-chg{{font-size:.72rem;font-weight:500;margin-left:4px}}
+.acc-chg.up{{color:#dc2626}}.acc-chg.dn{{color:#2563eb}}.acc-chg.neu{{color:#9ca3af}}
 .idx-link-btn{{font-size:.75rem;font-weight:500;padding:5px 12px;border-radius:6px;
                text-decoration:none;border:1px solid #e5e7eb;background:#fff;
                color:#374151;transition:border-color .15s,background .15s}}
@@ -506,7 +570,13 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
   {accordions_html}
 
-  <div class="idx-links">
+  <div class="idx-tab-bar">
+    <button class="idx-tab active" data-tab="tab-idx">운임지수</button>
+    <button class="idx-tab" data-tab="tab-env">연료·환경</button>
+    <button class="idx-tab" data-tab="tab-stat">통계·보고서</button>
+  </div>
+
+  <div class="idx-tab-panel active" id="tab-idx">
     <a class="idx-link-btn" href="https://surff.kr/indices" target="_blank">📈 SCFI · KCCI · CCFI — surff.kr</a>
     <a class="idx-link-btn" href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">📊 SCFI · CCFI · BDI — 국가물류통합정보센터</a>
     <a class="idx-link-btn" href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">📉 BDI · BCI · BPI — 쉬핑뉴스넷</a>
@@ -514,11 +584,26 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     <a class="idx-link-btn" href="https://www.balticexchange.com/en/index.html" target="_blank">⚓ Baltic Exchange 공식</a>
     <a class="idx-link-btn" href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">🚢 SCFI 공식 — 상하이해운거래소</a>
     <a class="idx-link-btn" href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">🛳️ CCFI 공식 — 상하이해운거래소</a>
-    <a class="idx-link-btn" href="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/" target="_blank">📦 Freightos 글로벌 컨테이너 운임지수 (FBX)</a>
+    <a class="idx-link-btn" href="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/" target="_blank">📦 Freightos FBX — 컨테이너 운임</a>
     <a class="idx-link-btn" href="https://www.tradlinx.com/ko/freight-index" target="_blank">📊 TradLinx 운임지수 종합 차트</a>
+    <a class="idx-link-btn" href="https://www.spotmarketcap.com/shipping" target="_blank">🛢️ 탱커 TCE·Worldscale — spotmarketcap</a>
+  </div>
+
+  <div class="idx-tab-panel" id="tab-env">
+    <a class="idx-link-btn" href="https://shipandbunker.com/prices" target="_blank">⛽ 글로벌 벙커유 가격 — Ship&Bunker</a>
+    <a class="idx-link-btn" href="https://shipandbunker.com/prices/ea/eu/eu-eua" target="_blank">💶 EU-ETS 탄소배출권 — Ship&Bunker</a>
     <a class="idx-link-btn" href="https://lngprime.com/" target="_blank">🔥 LNG 스팟 운임 시황 — LNG Prime</a>
-    <a class="idx-link-btn" href="https://www.spotmarketcap.com/shipping" target="_blank">🛢️ 탱커 전 클래스 TCE·Worldscale — spotmarketcap.com</a>
+    <a class="idx-link-btn" href="https://kr.investing.com/commodities/carbon-emissions-historical-data" target="_blank">📉 EU-ETS EUA 과거 가격 — Investing.com</a>
+    <a class="idx-link-btn" href="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures" target="_blank">🌊 JKM LNG 스팟 — Investing.com</a>
     <a class="idx-link-btn" href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가 지수 — Baltic Exchange</a>
+  </div>
+
+  <div class="idx-tab-panel" id="tab-stat">
+    <a class="idx-link-btn" href="https://nlic.go.kr/nlic/seaStatisticBoard.action" target="_blank">🚢 해상 운송 통계 — 국가물류통합정보센터</a>
+    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000" target="_blank">📄 KOBC 일간 건화물선 보고서</a>
+    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000" target="_blank">📄 KOBC 주간통합 시황 보고서</a>
+    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊 KDCI 건화물선 세부지수 — KOBC</a>
+    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별 — KOBC</a>
   </div>
 
   <div class="sec-label">📰 최신 해운 뉴스</div>
@@ -676,6 +761,16 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   }};
   modal.onclick = (e) => {{ if (e.target === modal) cancelBtn.onclick(); }};
   render();
+
+  // 탭 전환
+  document.querySelectorAll('.idx-tab').forEach(tab => {{
+    tab.addEventListener('click', () => {{
+      document.querySelectorAll('.idx-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.idx-tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.tab).classList.add('active');
+    }});
+  }});
 
   // 아코디언 토글
   document.querySelectorAll('.acc-toggle').forEach(btn => {{
