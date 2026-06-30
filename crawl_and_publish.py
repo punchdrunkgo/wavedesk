@@ -99,8 +99,9 @@ def get_indices():
 # 2. 뉴스 수집
 # ══════════════════════════════════════════════════════════════════════════
 
-def fetch_google_news(query, lang, source, label, max_items=5):
-    """Google 뉴스 RSS — 한/영 모두 지원, 해외 서버 차단 없음"""
+def fetch_google_news(query, lang, source, label, max_items=8):
+    """Google 뉴스 RSS — 한/영 모두 지원, 해외 서버 차단 없음
+    오늘/어제 기사만 필터링"""
     items = []
     try:
         if lang == "ko":
@@ -109,14 +110,28 @@ def fetch_google_news(query, lang, source, label, max_items=5):
             url = f"https://news.google.com/rss/search?q={query}&hl=en&gl=US&ceid=US:en"
         r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
         root = ET.fromstring(r.content)
-        for item in root.findall(".//item")[:max_items]:
+        today = NOW.date()
+        yesterday = (NOW - timedelta(days=1)).date()
+        for item in root.findall(".//item")[:max_items * 2]:
             title = (item.findtext("title") or "").strip()
             link  = (item.findtext("link") or "").strip()
+            pub   = (item.findtext("pubDate") or "").strip()
             src_el = item.find("source")
             lbl = src_el.text.strip() if src_el is not None else label
+            # 날짜 필터: 오늘/어제 기사만
+            if pub:
+                try:
+                    pub_dt = datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z")
+                    pub_dt = pub_dt.replace(tzinfo=timezone.utc).astimezone(KST)
+                    if pub_dt.date() not in (today, yesterday):
+                        continue
+                except Exception:
+                    pass  # 날짜 파싱 실패 시 포함 (필터 누락 방지)
             if title and link:
                 items.append({"title": title, "title_ko": "" if lang == "en" else title,
                                "url": link, "source": source, "label": lbl})
+            if len(items) >= max_items:
+                break
     except Exception:
         pass
     return items
@@ -144,17 +159,18 @@ def translate_titles(news_list):
 
 def get_news():
     news = []
-    # 해외 — Google 뉴스 영어 RSS (총 10건)
+    # 해외 — Google 뉴스 영어 RSS, 다양한 키워드로 여러 매체 자연 혼합 (총 10건, 오늘/어제만)
     en_queries = [
-        ("shipping freight rates", 5),
+        ("shipping freight rates", 4),
         ("container shipping market", 3),
         ("bulk carrier tanker shipping", 2),
+        ("maritime industry news", 3),
     ]
     for q, cnt in en_queries:
         got = fetch_google_news(q.replace(" ","+"), "en", "해외뉴스", "Shipping News", cnt)
         news += got
 
-    # 국내 — Google 뉴스 한국어 RSS (총 10건)
+    # 국내 — Google 뉴스 한국어 RSS (총 10건, 오늘/어제만)
     ko_queries = [
         ("해운+운임", 5),
         ("해운+물류+컨테이너", 3),
@@ -412,10 +428,10 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     <a class="idx-link-btn" href="https://surff.kr/indices" target="_blank">📈 SCFI · KCCI · CCFI — surff.kr</a>
     <a class="idx-link-btn" href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">📊 SCFI · CCFI · BDI — 국가물류통합정보센터</a>
     <a class="idx-link-btn" href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">📉 BDI · BCI · BPI — 쉬핑뉴스넷</a>
-    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">🇰🇷 KCCI — 한국해양진흥공사</a>
-    <a class="idx-link-btn" href="https://www.balticexchange.com/en/index.html" target="_blank">🌐 Baltic Exchange 공식</a>
-    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">🇨🇳 SCFI 공식 — 상하이해운거래소</a>
-    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">🇨🇳 CCFI 공식 — 상하이해운거래소</a>
+    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">📌 KCCI — 한국해양진흥공사</a>
+    <a class="idx-link-btn" href="https://www.balticexchange.com/en/index.html" target="_blank">⚓ Baltic Exchange 공식</a>
+    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">📈 SCFI 공식 — 상하이해운거래소</a>
+    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">📈 CCFI 공식 — 상하이해운거래소</a>
     <a class="idx-link-btn" href="https://www.freightos.com/freight-index/" target="_blank">📦 Freightos 글로벌 컨테이너 운임지수 (FBX)</a>
     <a class="idx-link-btn" href="https://www.tradlinx.com/ko/freight-index" target="_blank">📊 TradLinx 운임지수 종합 차트</a>
   </div>
@@ -438,18 +454,6 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     <a class="link-card" href="https://www.kobc.or.kr/ebz/shippinginfo/main.do" target="_blank">
       <div class="lc-name">한국해양진흥공사</div>
       <div class="lc-sub">KCCI · 해운시황 보고서</div>
-    </a>
-    <a class="link-card" href="https://www.nlic.go.kr/nlic/transInPortCt.action" target="_blank">
-      <div class="lc-name">국가물류통합정보센터</div>
-      <div class="lc-sub">SCFI · CCFI · BDI</div>
-    </a>
-    <a class="link-card" href="https://surff.kr/indices" target="_blank">
-      <div class="lc-name">surff.kr 운임지수</div>
-      <div class="lc-sub">SCFI · KCCI · CCFI 차트</div>
-    </a>
-    <a class="link-card" href="https://www.balticexchange.com/en/index.html" target="_blank">
-      <div class="lc-name">Baltic Exchange</div>
-      <div class="lc-sub">BDI 공식 사이트</div>
     </a>
     <a class="link-card" href="http://www.maritimepress.co.kr/" target="_blank">
       <div class="lc-name">해사신문</div>
@@ -504,9 +508,9 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
         <div class="aff-name">대한해운LNG</div>
         <div class="aff-desc">LNG 전문 운송 (확인 필요)</div>
       </a>
-      <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
+      <a class="aff-card" href="https://www.klcsm.co.kr/" target="_blank">
         <div class="aff-name">KLCSM</div>
-        <div class="aff-desc">선박관리 (독립 사이트 미확인)</div>
+        <div class="aff-desc">선박관리 · 수리</div>
       </a>
       <a class="aff-card" href="http://www.cmship.co.kr/" target="_blank">
         <div class="aff-name">창명해운</div>
