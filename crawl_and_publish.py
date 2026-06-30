@@ -245,7 +245,8 @@ def build_html(indices, news):
         chg = d.get("change","").strip()
         chg_str = f"{arrow} {chg}" if chg and chg not in ("0","—","") else "전일 동일"
         unavail = " idx-unavail" if d["value"] == "—" else ""
-        date_html = f'<div class="idx-date">기준: {d["date"]}</div>' if d.get("date") else ""
+        date_label = d.get("date") or NOW.strftime("%Y-%m-%d") + " 조회"
+        date_html = f'<div class="idx-date">기준: {date_label}</div>'
         note_html = f'<div class="idx-note">{d["note"]}</div>' if d.get("note") else ""
         idx_html += f"""
       <a class="idx-card{unavail}" href="{d['url']}" target="_blank">
@@ -438,8 +439,8 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     <a class="idx-link-btn" href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">🛳️ CCFI 공식 — 상하이해운거래소</a>
     <a class="idx-link-btn" href="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/" target="_blank">📦 Freightos 글로벌 컨테이너 운임지수 (FBX)</a>
     <a class="idx-link-btn" href="https://www.tradlinx.com/ko/freight-index" target="_blank">📊 TradLinx 운임지수 종합 차트</a>
-    <a class="idx-link-btn" href="https://www.balticexchange.com/en/data-services/market-information0/gas-services.html" target="_blank">🔥 LNG·LPG 운임지수 (BLNG·BLPG) — Baltic Exchange</a>
-    <a class="idx-link-btn" href="https://www.balticexchange.com/en/data-services/market-information0/tankers-services.html" target="_blank">🛢️ 탱커 운임지수 (TCE) — Baltic Exchange</a>
+    <a class="idx-link-btn" href="https://lngprime.com/category/markets/" target="_blank">🔥 LNG 스팟 운임 시황 — LNG Prime</a>
+    <a class="idx-link-btn" href="https://www.spotmarketcap.com/shipping" target="_blank">🛢️ 탱커 전 클래스 TCE·Worldscale — spotmarketcap.com</a>
     <a class="idx-link-btn" href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가 지수 — Baltic Exchange</a>
   </div>
 
