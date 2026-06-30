@@ -46,6 +46,12 @@ def get_indices():
         "KCCI": {"value": "—", "change": "", "label": "한국컨운임지수",
                  "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000",
                  "note": "매주 월 14:00 · 한국해양진흥공사"},
+        "BDTI": {"value": "—", "change": "", "label": "발틱탱커지수(원유)",
+                 "date": "", "url": "https://www.spotmarketcap.com/shipping",
+                 "note": "비정기 갱신 · spotmarketcap.com"},
+        "BCTI": {"value": "—", "change": "", "label": "발틱탱커지수(석유제품)",
+                 "date": "", "url": "https://www.spotmarketcap.com/shipping",
+                 "note": "비정기 갱신 · spotmarketcap.com"},
     }
     # BDI — 쉬핑뉴스넷
     try:
@@ -91,6 +97,22 @@ def get_indices():
                 break
     except Exception as e:
         print(f"  [KCCI 오류] {e}")
+
+    # BDTI / BCTI — spotmarketcap.com
+    try:
+        r = requests.get("https://www.spotmarketcap.com/shipping",
+                         headers=HEADERS, timeout=TIMEOUT)
+        text = r.text
+        m_bdti = re.search(r"BDTI[^\d]{0,5}([\d,]+)[^\d]{0,10}([+\-][\d.]+%)", text)
+        m_bcti = re.search(r"BCTI[^\d]{0,5}([\d,]+)[^\d]{0,10}([+\-][\d.]+%)", text)
+        if m_bdti:
+            base["BDTI"].update({"value": m_bdti.group(1), "change": m_bdti.group(2),
+                                  "date": NOW.strftime("%Y-%m-%d")})
+        if m_bcti:
+            base["BCTI"].update({"value": m_bcti.group(1), "change": m_bcti.group(2),
+                                  "date": NOW.strftime("%Y-%m-%d")})
+    except Exception as e:
+        print(f"  [BDTI/BCTI 오류] {e}")
 
     return base
 
@@ -294,7 +316,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
             letter-spacing:.8px;color:#6b7280;margin-bottom:.5rem}}
 
 /* 지수 */
-.idx-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:.75rem}}
+.idx-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:.75rem}}
 .idx-card{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
            padding:1rem 1.25rem;text-decoration:none;color:inherit;
            transition:border-color .15s;display:block}}
@@ -414,8 +436,11 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     <a class="idx-link-btn" href="https://www.balticexchange.com/en/index.html" target="_blank">⚓ Baltic Exchange 공식</a>
     <a class="idx-link-btn" href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">🚢 SCFI 공식 — 상하이해운거래소</a>
     <a class="idx-link-btn" href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">🛳️ CCFI 공식 — 상하이해운거래소</a>
-    <a class="idx-link-btn" href="https://www.freightos.com/freight-index/" target="_blank">📦 Freightos 글로벌 컨테이너 운임지수 (FBX)</a>
+    <a class="idx-link-btn" href="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/" target="_blank">📦 Freightos 글로벌 컨테이너 운임지수 (FBX)</a>
     <a class="idx-link-btn" href="https://www.tradlinx.com/ko/freight-index" target="_blank">📊 TradLinx 운임지수 종합 차트</a>
+    <a class="idx-link-btn" href="https://www.balticexchange.com/en/data-services/market-information0/gas-services.html" target="_blank">🔥 LNG·LPG 운임지수 (BLNG·BLPG) — Baltic Exchange</a>
+    <a class="idx-link-btn" href="https://www.balticexchange.com/en/data-services/market-information0/tankers-services.html" target="_blank">🛢️ 탱커 운임지수 (TCE) — Baltic Exchange</a>
+    <a class="idx-link-btn" href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가 지수 — Baltic Exchange</a>
   </div>
 
   <div class="sec-label">📰 최신 해운 뉴스</div>
