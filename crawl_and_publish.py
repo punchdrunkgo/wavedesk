@@ -498,129 +498,100 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 /* 사이트 섹션 */
 .sites-section{{margin-bottom:1rem}}
-.my-site-header{{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;padding:.4rem 0}}
-.my-site-label{{font-size:.8rem;font-weight:700;color:#111827}}
-.my-site-hint{{font-size:.68rem;color:#9ca3af;flex:1}}
 
 /* ＋ 뱃지 */
 .pin-dot{{display:inline-flex;align-items:center;justify-content:center;
-          width:15px;height:15px;border-radius:50%;
-          background:#e5e7eb;color:#6b7280;font-size:.62rem;
-          cursor:pointer;margin-left:3px;line-height:1;
+          width:16px;height:16px;border-radius:50%;
+          background:#e5e7eb;color:#6b7280;font-size:.6rem;font-weight:700;
+          cursor:pointer;margin-left:4px;line-height:1;
           transition:background .12s,color .12s;
-          user-select:none;vertical-align:middle}}
-.pin-dot:hover{{background:#2563eb;color:#fff}}
-.pin-dot.pinned{{background:#2563eb;color:#fff}}
-.site-tab-bar{{display:flex;gap:4px;margin-bottom:8px;
-               border-bottom:1px solid #e5e7eb;padding-bottom:6px}}
-.site-tab{{padding:4px 14px;border-radius:5px;border:none;background:transparent;
-           font-size:.78rem;font-weight:600;color:#6b7280;cursor:pointer;font-family:inherit}}
-.site-tab.active{{background:#e5e7eb;color:#111827}}
-.site-tab:hover:not(.active){{color:#374151}}
-.site-panel{{display:none}}
-.site-panel.active{{display:block}}
+          user-select:none;vertical-align:middle;flex-shrink:0}}
+.pin-dot:hover{{background:#0071e3;color:#fff}}
+.pin-dot.pinned{{background:#0071e3;color:#fff}}
 
 /* 사이트 그룹 */
-.site-group-label{{font-size:.72rem;font-weight:600;color:#6b7280;
-                   text-transform:uppercase;letter-spacing:.5px;
-                   margin:.9rem 0 .4rem;padding-left:2px}}
-.site-link-row{{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:.5rem}}
-.site-link-item{{font-size:.78rem;padding:5px 12px;border-radius:6px;
-                 border:1px solid #e5e7eb;background:#fff;color:#374151;
-                 cursor:grab;transition:border-color .15s,background .15s;
-                 user-select:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif}}
-.site-link-item a{{color:inherit;text-decoration:none;pointer-events:all}}
-.site-link-item:hover{{border-color:#2563eb;background:#eff6ff;color:#1e3a8a}}
-.site-link-item.dragging{{opacity:.4;cursor:grabbing}}
-.site-link-item.drag-over{{border-color:#2563eb;background:#dbeafe}}
+.site-group-label{{font-size:.68rem;font-weight:600;color:#86868b;
+                   text-transform:uppercase;letter-spacing:.6px;
+                   margin:1rem 0 .4rem;padding-left:2px}}
+.site-link-row{{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.25rem}}
+.site-link-item{{display:inline-flex;align-items:center;
+                 font-size:.78rem;padding:5px 11px;border-radius:980px;
+                 border:1px solid #d2d2d7;background:#fff;color:#1d1d1f;
+                 cursor:default;transition:border-color .12s,background .12s;
+                 font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Noto Sans KR',sans-serif;
+                 line-height:1.4}}
+.site-link-item a{{color:inherit;text-decoration:none;pointer-events:all;cursor:pointer}}
+.site-link-item:hover{{border-color:#0071e3;background:#f5f5f7}}
+.site-link-item.dragging{{opacity:.4}}
 
-/* 내 사이트 드롭존 */
-.my-site-grid{{display:flex;flex-wrap:wrap;gap:7px;min-height:44px;
-               padding:8px;border:1.5px dashed #e5e7eb;border-radius:8px;
-               background:#f9fafb;margin-bottom:.5rem;
-               transition:border-color .15s,background .15s}}
-.my-site-grid.drag-active{{border-color:#2563eb;background:#eff6ff}}
-.my-empty{{font-size:.75rem;color:#9ca3af;align-self:center}}
-.my-site-item{{font-size:.72rem;padding:4px 10px;border-radius:5px;
-               border:1px solid #2563eb;background:#eff6ff;color:#1e3a8a;
-               cursor:grab;display:flex;align-items:center;gap:5px;
-               position:relative}}
-.my-site-item a{{color:inherit;text-decoration:none;pointer-events:none}}
-.my-del-btn{{font-size:.65rem;color:#9ca3af;background:none;border:none;
-             cursor:pointer;padding:0 2px;line-height:1;pointer-events:all}}
-.my-del-btn:hover{{color:#dc2626}}
+/* 내 사이트 */
+.my-site-section{{margin-bottom:.75rem}}
+.my-site-header{{display:flex;align-items:center;gap:8px;margin-bottom:6px}}
+.my-site-label{{font-size:.82rem;font-weight:600;color:#1d1d1f;
+                font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Noto Sans KR',sans-serif}}
+.my-site-hint{{font-size:.67rem;color:#86868b;flex:1}}
+.my-site-grid{{display:flex;flex-wrap:wrap;gap:6px;min-height:40px;
+               padding:8px 10px;border-radius:12px;
+               border:1.5px dashed #d2d2d7;background:#fafafa;
+               margin-bottom:.5rem;transition:border-color .12s,background .12s}}
+.my-site-grid.drag-active{{border-color:#0071e3;background:#f0f6ff}}
+.my-empty{{font-size:.73rem;color:#86868b;align-self:center;padding:.25rem 0}}
+.my-site-item{{display:inline-flex;align-items:center;gap:5px;
+               font-size:.78rem;padding:5px 11px;border-radius:980px;
+               border:1px solid #0071e3;background:#fff;color:#0071e3;
+               cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Noto Sans KR',sans-serif;
+               line-height:1.4;text-decoration:none;
+               transition:background .12s,color .12s}}
+.my-site-item:hover{{background:#0071e3;color:#fff}}
+.my-site-item a{{color:inherit;text-decoration:none;pointer-events:all}}
+.my-del-btn{{font-size:.65rem;color:inherit;background:none;border:none;
+             cursor:pointer;padding:0;line-height:1;pointer-events:all;opacity:.6}}
+.my-del-btn:hover{{opacity:1}}
+
+/* 주요 사이트 카드 */
 .site-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:.75rem}}
-.site-card{{background:#fff;border:1px solid #e5e7eb;border-radius:7px;
-            padding:.65rem .9rem;text-decoration:none;color:inherit;
-            transition:border-color .15s;display:block}}
-.site-card:hover{{border-color:#2563eb}}
-.site-card-name{{font-size:.8rem;font-weight:600;color:#111827}}
-.site-card-sub{{font-size:.68rem;color:#9ca3af;margin-top:2px}}
+.site-card{{background:#fff;border:1px solid #d2d2d7;border-radius:12px;
+            padding:.7rem 1rem;text-decoration:none;color:inherit;
+            transition:border-color .12s,box-shadow .12s;display:block}}
+.site-card:hover{{border-color:#0071e3;box-shadow:0 2px 8px rgba(0,113,227,.1)}}
+.site-card-name{{font-size:.82rem;font-weight:500;color:#1d1d1f}}
+.site-card-sub{{font-size:.68rem;color:#86868b;margin-top:2px}}
 .site-category{{font-size:.68rem;font-weight:600;text-transform:uppercase;
-                letter-spacing:.5px;color:#9ca3af;margin:.65rem 0 .3rem}}
+                letter-spacing:.5px;color:#86868b;margin:.65rem 0 .3rem}}
 
 /* SM 계열사 */
 .aff-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}}
-.aff-card{{background:#1e3a8a;border-radius:8px;padding:.6rem .9rem;
-           text-decoration:none;transition:background .15s}}
-.aff-card:hover{{background:#1a56db}}
-.aff-name{{font-size:.78rem;font-weight:600;color:#fff}}
-.aff-desc{{font-size:.68rem;color:#93c5fd;margin-top:2px}}
+.aff-card{{background:#1d1d1f;border-radius:12px;padding:.65rem 1rem;
+           text-decoration:none;transition:background .12s}}
+.aff-card:hover{{background:#2d2d2f}}
+.aff-name{{font-size:.8rem;font-weight:500;color:#f5f5f7}}
+.aff-desc{{font-size:.68rem;color:#86868b;margin-top:2px}}
 
-/* 내 사이트 (지수 탭) */
-.my-idx-header{{display:flex;justify-content:space-between;align-items:center;
-                width:100%;margin-bottom:8px}}
-.my-idx-hint{{font-size:.7rem;color:#9ca3af}}
-.my-idx-grid{{display:flex;flex-wrap:wrap;gap:7px;min-height:36px;width:100%}}
-.my-idx-empty{{font-size:.75rem;color:#9ca3af;padding:.5rem 0}}
-.my-idx-card{{display:flex;align-items:center;gap:5px;font-size:.72rem;padding:4px 10px;
-              border-radius:5px;border:1px solid #e5e7eb;background:#fff;
-              color:#374151;text-decoration:none;position:relative;cursor:grab}}
-.my-idx-card:hover{{border-color:#2563eb;color:#1e3a8a}}
-.my-idx-card.dragging{{opacity:.4}}
-.my-idx-del{{font-size:.65rem;color:#9ca3af;background:none;border:none;
-             cursor:pointer;padding:0 2px;line-height:1}}
-.my-idx-del:hover{{color:#dc2626}}
-.idx-pin-btn{{font-size:.68rem;padding:2px 6px;border-radius:4px;
-              border:1px solid #e5e7eb;background:#f9fafb;color:#6b7280;
-              cursor:pointer;font-family:inherit;margin-left:-2px;
-              transition:all .15s;flex-shrink:0}}
-.idx-pin-btn:hover{{border-color:#2563eb;color:#2563eb;background:#eff6ff}}
-.idx-pin-btn.pinned{{border-color:#10b981;color:#10b981;background:#ecfdf5}}
-.my-site-hint{{font-size:.7rem;color:#9ca3af}}
-.my-add-btn{{font-size:.75rem;padding:4px 12px;border-radius:6px;
-             border:1px solid #e5e7eb;background:#fff;color:#2563eb;
-             cursor:pointer;font-family:inherit}}
-.my-add-btn:hover{{border-color:#2563eb}}
-.my-site-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;min-height:60px}}
-.my-card{{background:#fff;border:1px solid #e5e7eb;border-radius:7px;
-          padding:.65rem .9rem;text-decoration:none;color:inherit;
-          position:relative;cursor:grab;transition:border-color .15s,opacity .15s}}
-.my-card:hover{{border-color:#2563eb}}
-.my-card.dragging{{opacity:.4;cursor:grabbing}}
-.my-card-name{{font-size:.8rem;font-weight:600;color:#111827}}
-.my-card-sub{{font-size:.68rem;color:#9ca3af;margin-top:2px}}
-.my-del-btn{{position:absolute;top:4px;right:4px;width:16px;height:16px;
-             border-radius:50%;background:#f3f4f6;color:#9ca3af;border:none;
-             font-size:.65rem;cursor:pointer;line-height:16px;text-align:center;padding:0}}
-.my-del-btn:hover{{background:#fee2e2;color:#dc2626}}
-.my-empty{{grid-column:1/-1;text-align:center;padding:1.5rem;
-           font-size:.78rem;color:#9ca3af;border:1px dashed #e5e7eb;border-radius:7px}}
+/* 직접 추가 버튼 */
+.direct-add-btn{{display:inline-flex;align-items:center;gap:5px;
+                 font-size:.78rem;padding:6px 14px;border-radius:980px;
+                 border:1px solid #d2d2d7;background:#fff;color:#0071e3;
+                 cursor:pointer;font-family:inherit;
+                 transition:border-color .12s,background .12s}}
+.direct-add-btn:hover{{border-color:#0071e3;background:#f0f6ff}}
 
 /* 모달 */
 .modal-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
                 z-index:100;align-items:center;justify-content:center}}
 .modal-overlay.open{{display:flex}}
-.modal-box{{background:#fff;border-radius:12px;padding:1.5rem;width:300px;max-width:90vw}}
-.modal-title{{font-size:.92rem;font-weight:700;color:#111827;margin-bottom:.9rem}}
-.modal-input{{width:100%;padding:.55rem .8rem;border:1px solid #e5e7eb;border-radius:6px;
-              font-size:.82rem;margin-bottom:.55rem;font-family:inherit;background:#fff;color:#111827}}
-.modal-input:focus{{outline:none;border-color:#2563eb}}
+.modal-box{{background:#fff;border-radius:18px;padding:1.5rem;width:300px;max-width:90vw;
+            box-shadow:0 8px 32px rgba(0,0,0,.15)}}
+.modal-title{{font-size:.92rem;font-weight:600;color:#1d1d1f;margin-bottom:.9rem}}
+.modal-input{{width:100%;padding:.6rem .9rem;border:1px solid #d2d2d7;border-radius:8px;
+              font-size:.82rem;margin-bottom:.55rem;font-family:inherit;background:#fff;color:#1d1d1f}}
+.modal-input:focus{{outline:none;border-color:#0071e3}}
 .modal-btns{{display:flex;gap:7px;margin-top:.4rem}}
-.modal-btn{{flex:1;padding:.52rem;border-radius:6px;border:none;
-            font-size:.8rem;font-weight:600;cursor:pointer}}
-.modal-btn-cancel{{background:#f3f4f6;color:#6b7280}}
-.modal-btn-save{{background:#2563eb;color:#fff}}
+.modal-btn{{flex:1;padding:.55rem;border-radius:8px;border:none;
+            font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit}}
+.modal-btn-cancel{{background:#f5f5f7;color:#1d1d1f}}
+.modal-btn-save{{background:#0071e3;color:#fff}}
+
+.my-add-btn{{display:none}} /* 상단 직접추가 버튼 숨김 */
 
 .footer{{font-size:.72rem;color:#d1d5db;text-align:center;
          padding-top:.75rem;border-top:1px solid #e5e7eb}}
@@ -631,7 +602,6 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   .news-grid{{grid-template-columns:1fr}}
   .site-grid{{grid-template-columns:repeat(2,1fr)}}
   .aff-grid{{grid-template-columns:repeat(2,1fr)}}
-  .my-site-grid{{grid-template-columns:repeat(2,1fr)}}
 }}
 </style>
 </head>
@@ -657,11 +627,10 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   <!-- 내 사이트 (뉴스 위) -->
   <div class="my-site-header">
     <span class="my-site-label">⭐ 내 사이트</span>
-    <span class="my-site-hint">버튼 우측 ＋ 클릭으로 추가 · 더블클릭으로 제거 · 이 브라우저에만 저장</span>
-    <button class="my-add-btn" id="addSiteBtn">+ 직접 추가</button>
+    <span class="my-site-hint">아래 ＋ 클릭으로 추가 · 항목 클릭으로 이동 · 이 브라우저에만 저장</span>
   </div>
   <div class="my-site-grid droptarget" id="mySiteGrid">
-    <div class="my-empty" id="myEmpty">아래 섹션의 ＋ 버튼을 클릭하거나 직접 추가하세요</div>
+    <div class="my-empty" id="myEmpty">아래 섹션의 ＋ 버튼을 클릭해서 추가하세요</div>
   </div>
 
   <div class="sec-label">📰 최신 해운 뉴스</div>
@@ -751,6 +720,11 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
         <div class="aff-name">SM그룹 (해운부문)</div><div class="aff-desc">그룹 공식 홈페이지</div></a>
     </div>
+
+    <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid #f3f4f6">
+      <button class="direct-add-btn" id="addSiteBtn">＋ 내 사이트에 직접 추가</button>
+      <span style="font-size:.67rem;color:#86868b;margin-left:8px">URL을 직접 입력해서 추가하세요</span>
+    </div>
   </div>
 
   <div id="addLinkModal" class="modal-overlay">
@@ -807,12 +781,15 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     const links = getMyLinks();
     myEmpty.style.display = links.length ? 'none' : 'flex';
     links.forEach((l, i) => {{
-      const el = document.createElement('div');
+      const el = document.createElement('a');
       el.className = 'my-site-item';
+      el.href = l.url;
+      el.target = '_blank';
+      el.rel = 'noopener noreferrer';
       el.draggable = true;
-      el.innerHTML = `<a href="${{l.url}}" target="_blank">${{l.name}}</a>
-        <button class="my-del-btn" title="삭제">×</button>`;
-      el.querySelector('.my-del-btn').onclick = () => {{
+      el.innerHTML = `${{l.name}}<button class="my-del-btn" title="삭제" tabindex="-1">×</button>`;
+      el.querySelector('.my-del-btn').onclick = (e) => {{
+        e.preventDefault(); e.stopPropagation();
         const updated = getMyLinks(); updated.splice(i, 1); saveMyLinks(updated); renderMy(); updatePinDots();
       }};
       // 내 사이트 간 드래그 (순서 변경)
@@ -824,7 +801,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       el.addEventListener('dragend', () => el.classList.remove('dragging'));
       el.addEventListener('dragover', e => {{ e.preventDefault(); }});
       el.addEventListener('drop', e => {{
-        e.preventDefault();
+        e.preventDefault(); e.stopPropagation();
         if (!dragData || !dragData.fromMy || dragData.fromIdx === i) return;
         const updated = getMyLinks();
         const [moved] = updated.splice(dragData.fromIdx, 1);
