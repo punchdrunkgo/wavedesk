@@ -416,24 +416,24 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news):
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;
       background:#f0f4f8;color:#1a1a2e;min-height:100vh}}
-.wrap{{max-width:1100px;margin:0 auto;padding:1.5rem 1.25rem}}
+.wrap{{max-width:1100px;margin:0 auto;padding:.75rem 1.25rem}}
 
 /* 헤더 */
 .header{{display:flex;justify-content:space-between;align-items:center;
-         margin-bottom:1rem;padding-bottom:.6rem;border-bottom:2px solid #2563eb}}
+         margin-bottom:.6rem;padding-bottom:.4rem;border-bottom:2px solid #2563eb}}
 .brand{{display:flex;align-items:baseline;gap:8px}}
-.brand-name{{font-size:1.15rem;font-weight:700;color:#1e3a8a;letter-spacing:-.5px}}
-.brand-sub{{font-size:.75rem;color:#6b7280}}
-.header-time{{font-size:.78rem;color:#9ca3af;text-align:right;line-height:1.6}}
+.brand-name{{font-size:1rem;font-weight:700;color:#1e3a8a;letter-spacing:-.5px}}
+.brand-sub{{font-size:.72rem;color:#6b7280}}
+.header-time{{font-size:.72rem;color:#9ca3af;text-align:right;line-height:1.5}}
 
 /* 섹션 라벨 */
-.sec-label{{font-size:.75rem;font-weight:600;text-transform:uppercase;
+.sec-label{{font-size:.72rem;font-weight:600;text-transform:uppercase;
             letter-spacing:.8px;color:#6b7280;margin-bottom:.5rem}}
 
 /* 지수 카드 (4열) */
-.idx-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:.75rem}}
+.idx-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:.5rem}}
 .idx-card{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
-           padding:.9rem 1.1rem;text-decoration:none;color:inherit;
+           padding:.7rem 1rem;text-decoration:none;color:inherit;
            transition:border-color .15s;display:block}}
 .idx-card:hover{{border-color:#2563eb}}
 .idx-card.idx-unavail{{opacity:.45}}
@@ -599,6 +599,18 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 .my-add-btn{{display:none}} /* 상단 직접추가 버튼 숨김 */
 
+/* 안내 박스 */
+.guide-box{{background:#fff;border:1px solid #e5e7eb;border-radius:12px;
+            padding:1rem 1.25rem;margin-bottom:.75rem}}
+.guide-title{{font-size:.8rem;font-weight:600;color:#1e3a8a;margin-bottom:.6rem}}
+.guide-steps{{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.5rem}}
+.guide-step{{display:flex;align-items:center;gap:5px;font-size:.75rem;color:#374151;
+             background:#f8faff;border:1px solid #e5e7eb;border-radius:6px;padding:4px 9px}}
+.guide-num{{display:inline-flex;align-items:center;justify-content:center;
+            width:16px;height:16px;border-radius:50%;background:#2563eb;
+            color:#fff;font-size:.62rem;font-weight:700;flex-shrink:0}}
+.guide-note{{font-size:.7rem;color:#9ca3af;margin-top:.25rem}}
+
 .footer{{font-size:.72rem;color:#d1d5db;text-align:center;
          padding-top:.75rem;border-top:1px solid #e5e7eb}}
 
@@ -657,8 +669,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <div class="site-link-item draggable" draggable="true" data-name="Baltic Exchange" data-url="https://www.balticexchange.com/en/index.html"><a href="https://www.balticexchange.com/en/index.html" target="_blank">Baltic Exchange</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
       <div class="site-link-item draggable" draggable="true" data-name="SCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/scfinew.jsp"><a href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">SCFI — 상하이해운거래소</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
       <div class="site-link-item draggable" draggable="true" data-name="CCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/ccfinew.jsp"><a href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">CCFI — 상하이해운거래소</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="Freightos FBX" data-url="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/"><a href="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/" target="_blank">Freightos FBX</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="TradLinx 종합 차트" data-url="https://www.tradlinx.com/ko/freight-index"><a href="https://www.tradlinx.com/ko/freight-index" target="_blank">TradLinx 종합 차트</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="TradLinx 해운 블로그" data-url="https://www.tradlinx.com/blog/"><a href="https://www.tradlinx.com/blog/" target="_blank">TradLinx 해운 블로그</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
       <div class="site-link-item draggable" draggable="true" data-name="탱커 TCE·Worldscale" data-url="https://www.spotmarketcap.com/shipping"><a href="https://www.spotmarketcap.com/shipping" target="_blank">탱커 TCE·Worldscale</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
     </div>
 
@@ -666,6 +677,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     <div class="site-group-label">⛽ 연료·환경</div>
     <div class="site-link-row" id="group-env">
       <div class="site-link-item draggable" draggable="true" data-name="글로벌 벙커유 — Ship&Bunker" data-url="https://shipandbunker.com/prices"><a href="https://shipandbunker.com/prices" target="_blank">⛽ 글로벌 벙커유 — Ship&Bunker</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="VLSFO 실시간 가격 — vlsfo.com" data-url="https://vlsfo.com/"><a href="https://vlsfo.com/" target="_blank">🛢️ VLSFO 실시간 가격 — vlsfo.com</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
       <div class="site-link-item draggable" draggable="true" data-name="EU-ETS 탄소배출권" data-url="https://shipandbunker.com/prices/ea/eu/eu-eua"><a href="https://shipandbunker.com/prices/ea/eu/eu-eua" target="_blank">💶 EU-ETS 탄소배출권</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
       <div class="site-link-item draggable" draggable="true" data-name="LNG 스팟 — LNG Prime" data-url="https://lngprime.com/"><a href="https://lngprime.com/" target="_blank">🔥 LNG 스팟 — LNG Prime</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
       <div class="site-link-item draggable" draggable="true" data-name="EUA 과거 가격" data-url="https://kr.investing.com/commodities/carbon-emissions-historical-data"><a href="https://kr.investing.com/commodities/carbon-emissions-historical-data" target="_blank">📉 EUA 과거 가격</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
@@ -740,6 +752,19 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
         <button id="saveLinkBtn" class="modal-btn modal-btn-save">추가</button>
       </div>
     </div>
+  </div>
+
+  <!-- 안내 박스 -->
+  <div class="guide-box">
+    <div class="guide-title">💡 WaveDesk를 크롬 시작 페이지로 설정하는 방법</div>
+    <div class="guide-steps">
+      <div class="guide-step"><span class="guide-num">1</span>크롬 우측 상단 <b>⋮</b> (점 세 개) 클릭</div>
+      <div class="guide-step"><span class="guide-num">2</span><b>설정</b> 클릭</div>
+      <div class="guide-step"><span class="guide-num">3</span>좌측 메뉴에서 <b>시작 그룹</b> 선택</div>
+      <div class="guide-step"><span class="guide-num">4</span><b>특정 페이지 또는 페이지 집합 열기</b> 선택</div>
+      <div class="guide-step"><span class="guide-num">5</span><b>새 페이지 추가</b> 클릭 후 이 페이지의 URL 입력 → 저장</div>
+    </div>
+    <div class="guide-note">크롬을 열 때마다 WaveDesk가 자동으로 표시됩니다. 뉴스와 지수는 매일 08:00 KST에 자동 업데이트됩니다.</div>
   </div>
 
   <div class="footer">
