@@ -126,18 +126,32 @@ def get_indices():
         for row in soup.select("table tr"):
             cols = [td.get_text(strip=True) for td in row.select("td")]
             if len(cols) >= 6:
-                code, route, cur, prev, wk = cols[1], cols[2], cols[4], cols[5], cols[6] if len(cols) > 6 else ""
+                code = cols[1]; route = cols[2]; cur = cols[4]
+                prev = cols[5] if len(cols) > 5 else ""
+                wk   = cols[6] if len(cols) > 6 else ""
                 if code == "KCCI":
                     chg = ""
-                    m = re.search(r"([+\-]?\d+)\(([+\-][\d.]+%)\)", wk)
+                    # "173(4.62%)" 또는 "-173(-4.62%)" 패턴
+                    m = re.search(r"\(([\+\-]?[\d.]+%)\)", wk)
                     if m:
-                        chg = m.group(2)
+                        pct = m.group(1)
+                        # 부호 없으면 prev vs cur로 방향 판단
+                        try:
+                            sign = "+" if float(cur.replace(",","")) >= float(prev.replace(",","")) else "-"
+                            chg = pct if pct.startswith(("+","-")) else sign + pct
+                        except Exception:
+                            chg = pct
                     base["KCCI"].update({"value": cur, "change": chg, "date": NOW.strftime("%Y-%m-%d")})
                 elif code and re.match(r"^[A-Z]{3,5}$", code) and cur:
                     route_chg = ""
-                    m2 = re.search(r"([+\-][\d.]+%)", wk)
+                    m2 = re.search(r"\(([\+\-]?[\d.]+%)\)", wk)
                     if m2:
-                        route_chg = m2.group(1)
+                        pct = m2.group(1)
+                        try:
+                            sign = "+" if float(cur.replace(",","")) >= float(prev.replace(",","")) else "-"
+                            route_chg = pct if pct.startswith(("+","-")) else sign + pct
+                        except Exception:
+                            route_chg = pct
                     kcci_routes.append({"route": f"{route} ({code})", "value": cur, "change": route_chg})
     except Exception as e:
         print(f"  [KCCI 오류] {e}")
@@ -484,9 +498,19 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 /* 사이트 섹션 */
 .sites-section{{margin-bottom:1rem}}
-.my-site-header{{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}}
+.my-site-header{{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;padding:.4rem 0}}
 .my-site-label{{font-size:.8rem;font-weight:700;color:#111827}}
-.my-site-hint{{font-size:.7rem;color:#9ca3af;flex:1}}
+.my-site-hint{{font-size:.68rem;color:#9ca3af;flex:1}}
+
+/* ＋ 뱃지 */
+.pin-dot{{display:inline-flex;align-items:center;justify-content:center;
+          width:15px;height:15px;border-radius:50%;
+          background:#e5e7eb;color:#6b7280;font-size:.62rem;
+          cursor:pointer;margin-left:3px;line-height:1;
+          transition:background .12s,color .12s;
+          user-select:none;vertical-align:middle}}
+.pin-dot:hover{{background:#2563eb;color:#fff}}
+.pin-dot.pinned{{background:#2563eb;color:#fff}}
 .site-tab-bar{{display:flex;gap:4px;margin-bottom:8px;
                border-bottom:1px solid #e5e7eb;padding-bottom:6px}}
 .site-tab{{padding:4px 14px;border-radius:5px;border:none;background:transparent;
@@ -630,6 +654,16 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     {accordions_html}
   </div>
 
+  <!-- 내 사이트 (뉴스 위) -->
+  <div class="my-site-header">
+    <span class="my-site-label">⭐ 내 사이트</span>
+    <span class="my-site-hint">버튼 우측 ＋ 클릭으로 추가 · 더블클릭으로 제거 · 이 브라우저에만 저장</span>
+    <button class="my-add-btn" id="addSiteBtn">+ 직접 추가</button>
+  </div>
+  <div class="my-site-grid droptarget" id="mySiteGrid">
+    <div class="my-empty" id="myEmpty">아래 섹션의 ＋ 버튼을 클릭하거나 직접 추가하세요</div>
+  </div>
+
   <div class="sec-label">📰 최신 해운 뉴스</div>
   <div class="news-grid">
     {news_html}
@@ -638,50 +672,40 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   <div class="sites-section">
     <div class="sec-label">🔗 주요 사이트</div>
 
-    <!-- 내 사이트 (드래그 대상) -->
-    <div class="my-site-header">
-      <span class="my-site-label">⭐ 내 사이트</span>
-      <span class="my-site-hint">다른 섹션에서 드래그하거나 버튼으로 추가 · 이 브라우저에만 저장</span>
-      <button class="my-add-btn" id="addSiteBtn">+ 직접 추가</button>
-    </div>
-    <div class="my-site-grid droptarget" id="mySiteGrid">
-      <div class="my-empty" id="myEmpty">아래 섹션에서 항목을 드래그해서 추가하세요</div>
-    </div>
-
     <!-- 운임지수 -->
     <div class="site-group-label">📈 운임지수</div>
     <div class="site-link-row" id="group-idx">
-      <div class="site-link-item draggable" draggable="true" data-name="SCFI·KCCI·CCFI — surff.kr" data-url="https://surff.kr/indices"><a href="https://surff.kr/indices" target="_blank">SCFI·KCCI·CCFI — surff.kr</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="SCFI·CCFI·BDI — 국가물류통합정보센터" data-url="https://nlic.go.kr/nlic/ocnStatisticBoard.action"><a href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">SCFI·CCFI·BDI — 국가물류통합정보센터</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="BDI·BCI·BPI — 쉬핑뉴스넷" data-url="https://www.shippingnewsnet.com/sdata/page.html?term=1"><a href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">BDI·BCI·BPI — 쉬핑뉴스넷</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="KCCI — 한국해양진흥공사" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">KCCI — 한국해양진흥공사</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="Baltic Exchange" data-url="https://www.balticexchange.com/en/index.html"><a href="https://www.balticexchange.com/en/index.html" target="_blank">Baltic Exchange</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="SCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/scfinew.jsp"><a href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">SCFI — 상하이해운거래소</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="CCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/ccfinew.jsp"><a href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">CCFI — 상하이해운거래소</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="Freightos FBX" data-url="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/"><a href="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/" target="_blank">Freightos FBX</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="TradLinx 종합 차트" data-url="https://www.tradlinx.com/ko/freight-index"><a href="https://www.tradlinx.com/ko/freight-index" target="_blank">TradLinx 종합 차트</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="탱커 TCE·Worldscale" data-url="https://www.spotmarketcap.com/shipping"><a href="https://www.spotmarketcap.com/shipping" target="_blank">탱커 TCE·Worldscale</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="SCFI·KCCI·CCFI — surff.kr" data-url="https://surff.kr/indices"><a href="https://surff.kr/indices" target="_blank">SCFI·KCCI·CCFI — surff.kr</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="SCFI·CCFI·BDI — 국가물류통합정보센터" data-url="https://nlic.go.kr/nlic/ocnStatisticBoard.action"><a href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">SCFI·CCFI·BDI — 국가물류통합정보센터</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="BDI·BCI·BPI — 쉬핑뉴스넷" data-url="https://www.shippingnewsnet.com/sdata/page.html?term=1"><a href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">BDI·BCI·BPI — 쉬핑뉴스넷</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="KCCI — 한국해양진흥공사" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">KCCI — 한국해양진흥공사</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="Baltic Exchange" data-url="https://www.balticexchange.com/en/index.html"><a href="https://www.balticexchange.com/en/index.html" target="_blank">Baltic Exchange</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="SCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/scfinew.jsp"><a href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">SCFI — 상하이해운거래소</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="CCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/ccfinew.jsp"><a href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">CCFI — 상하이해운거래소</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="Freightos FBX" data-url="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/"><a href="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/" target="_blank">Freightos FBX</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="TradLinx 종합 차트" data-url="https://www.tradlinx.com/ko/freight-index"><a href="https://www.tradlinx.com/ko/freight-index" target="_blank">TradLinx 종합 차트</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="탱커 TCE·Worldscale" data-url="https://www.spotmarketcap.com/shipping"><a href="https://www.spotmarketcap.com/shipping" target="_blank">탱커 TCE·Worldscale</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
     </div>
 
     <!-- 연료·환경 -->
     <div class="site-group-label">⛽ 연료·환경</div>
     <div class="site-link-row" id="group-env">
-      <div class="site-link-item draggable" draggable="true" data-name="글로벌 벙커유 — Ship&Bunker" data-url="https://shipandbunker.com/prices"><a href="https://shipandbunker.com/prices" target="_blank">⛽ 글로벌 벙커유 — Ship&Bunker</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="EU-ETS 탄소배출권" data-url="https://shipandbunker.com/prices/ea/eu/eu-eua"><a href="https://shipandbunker.com/prices/ea/eu/eu-eua" target="_blank">💶 EU-ETS 탄소배출권</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="LNG 스팟 — LNG Prime" data-url="https://lngprime.com/"><a href="https://lngprime.com/" target="_blank">🔥 LNG 스팟 — LNG Prime</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="EUA 과거 가격" data-url="https://kr.investing.com/commodities/carbon-emissions-historical-data"><a href="https://kr.investing.com/commodities/carbon-emissions-historical-data" target="_blank">📉 EUA 과거 가격</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="JKM LNG 스팟" data-url="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures"><a href="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures" target="_blank">🌊 JKM LNG 스팟</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="벌크선 운영비·신조가" data-url="https://www.balticexchange.com/en/data-services/market-information0/indices.html"><a href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="글로벌 벙커유 — Ship&Bunker" data-url="https://shipandbunker.com/prices"><a href="https://shipandbunker.com/prices" target="_blank">⛽ 글로벌 벙커유 — Ship&Bunker</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="EU-ETS 탄소배출권" data-url="https://shipandbunker.com/prices/ea/eu/eu-eua"><a href="https://shipandbunker.com/prices/ea/eu/eu-eua" target="_blank">💶 EU-ETS 탄소배출권</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="LNG 스팟 — LNG Prime" data-url="https://lngprime.com/"><a href="https://lngprime.com/" target="_blank">🔥 LNG 스팟 — LNG Prime</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="EUA 과거 가격" data-url="https://kr.investing.com/commodities/carbon-emissions-historical-data"><a href="https://kr.investing.com/commodities/carbon-emissions-historical-data" target="_blank">📉 EUA 과거 가격</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="JKM LNG 스팟" data-url="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures"><a href="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures" target="_blank">🌊 JKM LNG 스팟</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="벌크선 운영비·신조가" data-url="https://www.balticexchange.com/en/data-services/market-information0/indices.html"><a href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
     </div>
 
     <!-- 통계·보고서 -->
     <div class="site-group-label">📊 통계·보고서</div>
     <div class="site-link-row" id="group-stat">
-      <div class="site-link-item draggable" draggable="true" data-name="해상 운송 통계" data-url="https://nlic.go.kr/nlic/seaStatisticBoard.action"><a href="https://nlic.go.kr/nlic/seaStatisticBoard.action" target="_blank">🚢 해상 운송 통계</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="KOBC 일간 건화물선 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000" target="_blank">📄 KOBC 일간 건화물선 보고서</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="KOBC 주간통합 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000" target="_blank">📄 KOBC 주간통합 보고서</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="KDCI 세부지수" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊 KDCI 세부지수</a></div>
-      <div class="site-link-item draggable" draggable="true" data-name="NCFI 닝보 노선별" data-url="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="해상 운송 통계" data-url="https://nlic.go.kr/nlic/seaStatisticBoard.action"><a href="https://nlic.go.kr/nlic/seaStatisticBoard.action" target="_blank">🚢 해상 운송 통계</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="KOBC 일간 건화물선 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000" target="_blank">📄 KOBC 일간 건화물선 보고서</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="KOBC 주간통합 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000" target="_blank">📄 KOBC 주간통합 보고서</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="KDCI 세부지수" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊 KDCI 세부지수</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="NCFI 닝보 노선별" data-url="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
     </div>
 
     <!-- 주요 해운 사이트 -->
@@ -789,7 +813,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       el.innerHTML = `<a href="${{l.url}}" target="_blank">${{l.name}}</a>
         <button class="my-del-btn" title="삭제">×</button>`;
       el.querySelector('.my-del-btn').onclick = () => {{
-        const updated = getMyLinks(); updated.splice(i, 1); saveMyLinks(updated); renderMy();
+        const updated = getMyLinks(); updated.splice(i, 1); saveMyLinks(updated); renderMy(); updatePinDots();
       }};
       // 내 사이트 간 드래그 (순서 변경)
       el.addEventListener('dragstart', e => {{
@@ -827,25 +851,51 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     dragData = null;
   }});
 
-  // 각 섹션 아이템 드래그 이벤트
+  // ── pin-dot 클릭: 내 사이트 추가/제거
+  function updatePinDots() {{
+    const links = getMyLinks();
+    const urls = new Set(links.map(l => l.url));
+    document.querySelectorAll('.pin-dot').forEach(dot => {{
+      const item = dot.closest('.site-link-item');
+      if (!item) return;
+      const url = item.dataset.url;
+      dot.classList.toggle('pinned', urls.has(url));
+      dot.title = urls.has(url) ? '내 사이트에서 제거' : '내 사이트에 추가';
+    }});
+  }}
+
+  document.querySelectorAll('.pin-dot').forEach(dot => {{
+    dot.addEventListener('click', e => {{
+      e.stopPropagation();
+      const item = dot.closest('.site-link-item');
+      if (!item) return;
+      const {{name, url}} = item.dataset;
+      const links = getMyLinks();
+      const idx = links.findIndex(l => l.url === url);
+      if (idx >= 0) {{ links.splice(idx, 1); }}
+      else {{ links.push({{name, url}}); }}
+      saveMyLinks(links); renderMy(); updatePinDots();
+    }});
+  }});
+
+  // site-link-item 더블클릭: 내 사이트에서 제거
   document.querySelectorAll('.site-link-item.draggable').forEach(item => {{
+    item.addEventListener('dblclick', () => {{
+      const links = getMyLinks();
+      const idx = links.findIndex(l => l.url === item.dataset.url);
+      if (idx >= 0) {{
+        links.splice(idx, 1); saveMyLinks(links); renderMy(); updatePinDots();
+      }}
+    }});
     item.addEventListener('dragstart', e => {{
       dragData = {{name: item.dataset.name, url: item.dataset.url, fromMy: false}};
       item.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'copy';
     }});
     item.addEventListener('dragend', () => item.classList.remove('dragging'));
-    // 클릭으로도 추가 가능 (더블클릭)
-    item.addEventListener('dblclick', () => {{
-      const links = getMyLinks();
-      if (!links.find(l => l.url === item.dataset.url)) {{
-        links.push({{name: item.dataset.name, url: item.dataset.url}});
-        saveMyLinks(links); renderMy();
-      }}
-    }});
   }});
 
-  // 직접 추가 버튼
+  renderMy(); updatePinDots();
   const addBtn = document.getElementById('addSiteBtn');
   const modal = document.getElementById('addLinkModal');
   const cancelBtn = document.getElementById('cancelLinkBtn');
@@ -869,7 +919,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   }};
   if (modal) modal.onclick = e => {{ if (e.target === modal && cancelBtn) cancelBtn.onclick(); }};
 
-  renderMy();
+  renderMy(); updatePinDots();
 }})();
 </script>
 </body>
