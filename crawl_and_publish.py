@@ -181,30 +181,41 @@ def get_indices():
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
 
-    # USD/KRW 환율 — api.exchangerate.fun (무료, API키 불필요)
+    # USD/KRW 환율 — exchangerate.fun (HTTPS, 무료, API키 불필요)
+    # 전일비는 네이버 금융 마켓인덱스에서 파싱
     try:
         r = requests.get("https://api.exchangerate.fun/latest?base=USD",
                          headers=HEADERS, timeout=10)
         data = r.json()
-        krw = data["rates"].get("KRW", 0)
-        if krw:
-            # 전일 환율 가져오기 (어제 날짜)
-            yesterday = (NOW - timedelta(days=1)).strftime("%Y-%m-%d")
-            r2 = requests.get(f"https://api.exchangerate.fun/historical?date={yesterday}&base=USD",
-                              headers=HEADERS, timeout=10)
-            data2 = r2.json()
-            krw_prev = data2.get("rates", {}).get("KRW", krw)
-            chg_val = krw - krw_prev
-            chg_pct = round(chg_val / krw_prev * 100, 2)
-            chg_str = f"+{chg_pct}%" if chg_pct >= 0 else f"{chg_pct}%"
-            base["USD/KRW"] = {
-                "value": f"{round(krw):,}",
-                "change": chg_str,
-                "label": "원달러환율",
-                "date": NOW.strftime("%Y-%m-%d"),
-                "url": "https://finance.naver.com/marketindex/",
-                "note": "일 1회 · exchangerate.fun"
-            }
+        krw = float(data.get("rates", {}).get("KRW", 0))
+        if not krw:
+            raise ValueError("KRW rate not found")
+        chg_str = ""
+        try:
+            r2 = requests.get("https://finance.naver.com/marketindex/",
+                              headers={**HEADERS, "Referer": "https://finance.naver.com/"},
+                              timeout=10)
+            r2.encoding = "utf-8"
+            soup2 = BeautifulSoup(r2.text, "lxml")
+            for item in soup2.select("#exchangeList li, .lst_exchange li"):
+                txt = item.get_text(" ", strip=True)
+                if "달러" in txt or "USD" in txt:
+                    nums = re.findall(r"[\+\-][\d.]+", txt)
+                    if nums:
+                        diff = float(nums[0])
+                        pct = round(diff / krw * 100, 2)
+                        chg_str = f"+{pct}%" if pct >= 0 else f"{pct}%"
+                    break
+        except Exception:
+            pass
+        base["USD/KRW"] = {
+            "value": f"{round(krw):,}",
+            "change": chg_str,
+            "label": "원달러환율",
+            "date": NOW.strftime("%Y-%m-%d"),
+            "url": "https://finance.naver.com/marketindex/",
+            "note": "일 1회 · exchangerate.fun"
+        }
     except Exception as e:
         print(f"  [환율 오류] {e}")
         base["USD/KRW"] = {
@@ -322,36 +333,56 @@ def get_news():
     return result
 
 
-# SM 해운 계열사 전체 이름 (Google 뉴스 검색용)
-SM_SHIPPING_COMPANIES = [
+# SM그룹 전체 계열사 (smgroup.co.kr 확인 기준)
+SM_SHIPPING = [
     "대한해운", "SM상선", "대한상선", "대한해운LNG", "대한해운엘엔지",
-    "KLCSM", "창명해운", "SM상선 경인터미널", "SM상선 김포터미널",
+    "KLCSM", "창명해운", "SM상선경인터미널", "SM상선김포터미널",
+    "한국선박금융",
 ]
-SM_GROUP_QUERIES = [
+SM_ALL_COMPANIES = SM_SHIPPING + [
+    # 제조
+    "남선알미늄", "티케이케미칼", "SM벡셀", "화진", "SM스틸",
+    "SM인더스트리", "SM중공업", "한덕철광산업", "이엔에이치",
+    # 건설
+    "SM삼환기업", "삼환기업", "우방",
+    # 미디어·서비스
+    "ubc울산방송", "UBC", "SM하이플러스", "SM신용정보",
+    "SM바로코사", "신촌역사",
+    # 레저
+    "동강시스타",
+    # 그룹 공통
+    "SM그룹", "에스엠그룹", "우오현",
+]
+
+SM_QUERIES = [
+    "SM그룹+대한해운",
+    "SM그룹+SM상선",
+    "SM그룹+KLCSM",
+    "대한상선+창명해운",
+    "대한해운LNG",
     "SM그룹+해운",
-    "대한해운+SM그룹",
-    "SM상선+해운",
-    "KLCSM+선박",
-    "창명해운+대한상선",
+    "SM그룹+계열사",
+    "SM그룹+우오현",
+    "SM그룹+남선알미늄",
+    "SM그룹+SM벡셀",
 ]
 
 def get_sm_news():
-    """SM그룹 해운 계열사 뉴스 - Google RSS, 3일치"""
+    """SM그룹 전체 계열사 뉴스 - Google RSS, 최근 3일치"""
     items = []
     cutoff = NOW - timedelta(days=3)
 
-    for q in SM_GROUP_QUERIES:
+    for q in SM_QUERIES:
         url = f"https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
         try:
             r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
             root = ET.fromstring(r.content)
-            for item in root.findall(".//item")[:8]:
+            for item in root.findall(".//item")[:6]:
                 title = (item.findtext("title") or "").strip()
                 link  = (item.findtext("link") or "").strip()
                 pub   = (item.findtext("pubDate") or "").strip()
                 src_el = item.find("source")
-                lbl = src_el.text.strip() if src_el is not None else "SM그룹"
-                # 날짜 필터: 3일 이내
+                lbl = src_el.text.strip() if src_el is not None else "뉴스"
                 if pub:
                     try:
                         pub_dt = datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z")
@@ -360,8 +391,7 @@ def get_sm_news():
                             continue
                     except Exception:
                         pass
-                # 계열사 관련 여부 확인
-                is_shipping = any(c in title for c in SM_SHIPPING_COMPANIES)
+                is_shipping = any(c in title for c in SM_SHIPPING)
                 category = "해운" if is_shipping else "그룹"
                 if title and link:
                     items.append({
@@ -371,16 +401,15 @@ def get_sm_news():
         except Exception:
             pass
 
-    # 중복 제거 + 해운 계열사 우선 정렬
     seen, result = set(), []
     for n in items:
         key = n["title"][:25]
         if key not in seen:
             seen.add(key)
             result.append(n)
-
-    result.sort(key=lambda x: (0 if x["category"] == "해운" else 1))
-    return result[:8]  # 최대 8건 (2열 4행)
+    # 해운 계열사 뉴스 우선
+    result.sort(key=lambda x: 0 if x["category"] == "해운" else 1)
+    return result[:8]
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -478,7 +507,7 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news):
           </a>"""
         return rows
 
-    # SM그룹 계열사 뉴스 HTML (2열 2행 기본, 초과 시 스크롤)
+    # SM그룹 계열사 뉴스 HTML (항상 표시, 비면 안내 메시지)
     sm_rows = ""
     for n in sm_news:
         badge_cls = "sm-badge-ship" if n["category"] == "해운" else "sm-badge-group"
@@ -495,13 +524,13 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news):
     sm_news_html = f"""
       <div class="sm-news-box">
         <div class="sm-news-header">
-          <span class="sm-news-icon">🚢</span> SM그룹 해운 계열사 소식
+          <span class="sm-news-icon">🚢</span> SM그룹 계열사 소식
           <span class="sm-news-sub">최근 3일 · Google 뉴스</span>
         </div>
         <div class="sm-news-grid">
-          {sm_rows if sm_rows else '<div class="sm-news-empty">최근 3일간 수집된 뉴스가 없습니다</div>'}
+          {sm_rows if sm_rows else '<div class="sm-news-empty">최근 3일 뉴스가 없어요</div>'}
         </div>
-      </div>""" if sm_news else ""
+      </div>"""
 
     en_blocks = news_rows_html(en_news, show_tag=True)
 
@@ -743,12 +772,12 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .eua-box{{background:#fff;border:1px solid #e5e7eb;border-radius:12px;
           padding:1rem 1.25rem;margin-bottom:.75rem}}
 .eua-title{{font-size:.8rem;font-weight:600;color:#1e3a8a;margin-bottom:.5rem}}
-.eua-body{{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:.4rem}}
-.eua-item{{display:flex;align-items:center;gap:8px;padding:6px 12px;
-           border-radius:8px;background:#f8faff;border:1px solid #e5e7eb}}
-.eua-year{{font-size:.7rem;color:#6b7280;font-weight:600}}
-.eua-date{{font-size:.75rem;color:#374151}}
-.eua-dday{{font-size:.75rem;font-weight:700;padding:2px 7px;border-radius:4px}}
+.eua-body{{display:flex;flex-direction:column;gap:4px;margin-bottom:.4rem}}
+.eua-item{{display:flex;align-items:center;gap:8px;padding:5px 10px;
+           border-radius:7px;background:#f8faff;border:1px solid #e5e7eb}}
+.eua-year{{font-size:.7rem;color:#6b7280;font-weight:600;flex-shrink:0}}
+.eua-date{{font-size:.72rem;color:#374151;white-space:nowrap;flex-shrink:0}}
+.eua-dday{{font-size:.72rem;font-weight:700;padding:2px 7px;border-radius:4px;flex-shrink:0}}
 .eua-dday.near{{background:#fee2e2;color:#dc2626}}
 .eua-dday.mid{{background:#fef3c7;color:#d97706}}
 .eua-dday.far{{background:#e0f2fe;color:#0369a1}}
@@ -920,9 +949,9 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   <!-- EUA D-Day + 안내 박스 (계열사와 간격) -->
   <div style="margin-top:1.5rem">
     <div class="eua-box">
-      <div class="eua-title">💶 EU-ETS EUA 선물 만기일</div>
+      <div class="eua-title">⚠️ 중요 D-DAY — 환경규제 & 선물 만기</div>
       <div class="eua-body" id="euaDday"></div>
-      <div class="eua-note">EUA 선물 최종거래일 기준 (매년 12월 세 번째 월요일) · <a href="https://www.ice.com/products/197/EUA-Futures/expiry" target="_blank" style="color:#2563eb">ICE 공식 만기일 확인 ↗</a></div>
+      <div class="eua-note">IMO DCS·EU-ETS·FuelEU·EUA 선물 만기일 기준 (KST 자정 기준)</div>
     </div>
 
     <!-- 안내 박스 -->
@@ -1098,39 +1127,51 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
   renderMy(); updatePinDots();
 
-  // ── EUA 선물 만기일 D-Day (매년 12월 세 번째 월요일)
-  function euaExpiry(year) {{
-    // 12월 1일부터 세 번째 월요일 찾기
-    const d = new Date(year, 11, 1);
-    const dow = d.getDay(); // 0=일, 1=월
-    const firstMon = dow <= 1 ? 1 + (1 - dow + 7) % 7 : 1 + (8 - dow);
-    return new Date(year, 11, firstMon + 14); // 세 번째 월요일
-  }}
-  const euaEl = document.getElementById('euaDday');
-  if (euaEl) {{
+  // ── 중요 D-DAY 계산 (환경규제 + EUA 선물 만기)
+  (function() {{
+    const euaEl = document.getElementById('euaDday');
+    if (!euaEl) return;
     const now = new Date();
-    const years = [now.getFullYear(), now.getFullYear() + 1];
-    euaEl.innerHTML = years.map(yr => {{
-      const exp = euaExpiry(yr);
-      const diff = Math.ceil((exp - now) / 86400000);
-      if (diff < 0) return '';
-      const cls = diff <= 60 ? 'near' : diff <= 180 ? 'mid' : 'far';
-      const label = diff === 0 ? 'D-DAY' : `D-${{diff}}`;
-      const dateStr = exp.toLocaleDateString('ko-KR', {{year:'numeric',month:'long',day:'numeric'}});
-      return `<div class="eua-item"><span class="eua-year">${{yr}}</span><span class="eua-date">${{dateStr}}</span><span class="eua-dday ${{cls}}">${{label}}</span></div>`;
-    }}).filter(Boolean).join('');
-  }}
+    const yr = now.getFullYear();
 
-  // ── 원달러 환율 (페이지 로드 시 1회, 인덱스 카드에 실시간 표시)
-  fetch('https://api.exchangerate.fun/latest?base=USD')
-    .then(r => r.json())
-    .then(data => {{
-      const rate = data && data.rates && data.rates.KRW;
-      if (!rate) return;
-      const el = document.getElementById('usdkrw-live');
-      if (el) el.textContent = Math.round(rate).toLocaleString() + ' ₩';
-    }})
-    .catch(() => {{}});
+    // EUA 선물 만기일: 매년 12월 세 번째 월요일
+    function euaExpiry(y) {{
+      const d = new Date(y, 11, 1);
+      const dow = d.getDay();
+      const firstMon = dow <= 1 ? 1 + (1 - dow + 7) % 7 : 1 + (8 - dow);
+      return new Date(y, 11, firstMon + 14);
+    }}
+
+    // 고정 연간 일정 (2026~2027)
+    const schedules = [];
+    [yr, yr+1].forEach(y => {{
+      schedules.push(
+        {{label: `FuelEU Maritime 보고서 마감 (${{y}})`, date: new Date(y, 0, 31)}},
+        {{label: `IMO DCS·EU-ETS 배출량 리포트 마감 ★ (${{y}})`, date: new Date(y, 2, 31)}},
+        {{label: `THETIS-MRV 검증 마킹 데드라인 (${{y}})`, date: new Date(y, 3, 30)}},
+        {{label: `IMO DCS 운항적합증서(SoC) 비치 마감 (${{y}})`, date: new Date(y, 4, 31)}},
+        {{label: `EU-ETS 탄소배출권(EUA) 납부 마감 (${{y}})`, date: new Date(y, 8, 30)}},
+        {{label: `EUA 선물 만기일 (${{y}})`, date: euaExpiry(y)}}
+      );
+    }});
+
+    // 오늘 이후 일정만 필터 + 날짜 오름차순 정렬 + 2027년까지
+    const upcoming = schedules
+      .filter(s => s.date >= now && s.date.getFullYear() <= 2027)
+      .sort((a, b) => a.date - b.date);
+
+    euaEl.innerHTML = upcoming.map(s => {{
+      const diff = Math.ceil((s.date - now) / 86400000);
+      const cls = diff <= 30 ? 'near' : diff <= 90 ? 'mid' : 'far';
+      const label = diff === 0 ? 'D-DAY' : `D-${{diff}}`;
+      const dateStr = s.date.toLocaleDateString('ko-KR', {{year:'numeric',month:'long',day:'numeric'}});
+      return `<div class="eua-item">
+        <span class="eua-date">${{dateStr}}</span>
+        <span class="eua-year" style="flex:1;color:#374151">${{s.label}}</span>
+        <span class="eua-dday ${{cls}}">${{label}}</span>
+      </div>`;
+    }}).join('') || '<div style="color:#9ca3af;font-size:.75rem;padding:.5rem">예정된 일정이 없습니다</div>';
+  }})();
 }})();
 </script>
 </body>
