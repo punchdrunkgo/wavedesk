@@ -836,3 +836,46 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 </script>
 </body>
 </html>"""
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 4. 실행
+# ══════════════════════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--output", default=".")
+    ap.add_argument("--no-push", action="store_true")
+    args = ap.parse_args()
+
+    print(f"[WaveDesk] {DATE_STR} {TIME_STR} 크롤링 시작")
+    indices, kdci_routes, kcci_routes, ncfi_routes = get_indices()
+    news = get_news()
+
+    idx_cnt = sum(1 for v in indices.values() if v["value"] != "—")
+    print(f"  지수: {idx_cnt}개 수집")
+    for k, v in indices.items():
+        print(f"    {k}: {v['value']} {v.get('change','')} ({v.get('date','')})")
+    print(f"  세부노선: KDCI {len(kdci_routes)}개 / KCCI {len(kcci_routes)}개 / NCFI {len(ncfi_routes)}개")
+    ko_cnt = sum(1 for n in news if n["source"] == "구글뉴스")
+    en_cnt = sum(1 for n in news if n["source"] == "해외뉴스")
+    print(f"  뉴스: 국내 {ko_cnt}건 / 해외 {en_cnt}건")
+
+    html = build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news)
+    out  = Path(args.output) / "index.html"
+    out.write_text(html, encoding="utf-8")
+    print(f"  HTML 저장: {out.resolve()}")
+
+    if not args.no_push:
+        try:
+            subprocess.run(["git","add","index.html"], cwd=args.output, check=True)
+            subprocess.run(["git","commit","-m",
+                            f"briefing: {NOW.strftime('%Y-%m-%d %H:%M')} KST"],
+                           cwd=args.output, check=True)
+            subprocess.run(["git","push"], cwd=args.output, check=True)
+            print("  GitHub 업로드 완료")
+        except subprocess.CalledProcessError as e:
+            print(f"  git 오류: {e}")
+    else:
+        print("  --no-push: git push 생략")
