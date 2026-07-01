@@ -104,8 +104,16 @@ def get_indices():
             base["KDCI"].update({"value": l[1], "change": chg, "date": l[0]})
             labels = ["CAPE","PANAMAX","SUPRAMAX","HANDY"]
             for i, name in enumerate(labels, start=2):
-                if len(l) > i:
-                    kdci_routes.append({"route": name, "value": l[i]})
+                if len(l) > i and p and len(p) > i:
+                    try:
+                        diff = int(l[i].replace(",","")) - int(p[i].replace(",",""))
+                        pct = round(diff / int(p[i].replace(",","")) * 100, 2)
+                        route_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
+                    except Exception:
+                        route_chg = ""
+                    kdci_routes.append({"route": name, "value": l[i], "change": route_chg})
+                elif len(l) > i:
+                    kdci_routes.append({"route": name, "value": l[i], "change": ""})
     except Exception as e:
         print(f"  [KDCI 오류] {e}")
 
@@ -126,7 +134,11 @@ def get_indices():
                         chg = m.group(2)
                     base["KCCI"].update({"value": cur, "change": chg, "date": NOW.strftime("%Y-%m-%d")})
                 elif code and re.match(r"^[A-Z]{3,5}$", code) and cur:
-                    kcci_routes.append({"route": f"{route} ({code})", "value": cur})
+                    route_chg = ""
+                    m2 = re.search(r"([+\-][\d.]+%)", wk)
+                    if m2:
+                        route_chg = m2.group(1)
+                    kcci_routes.append({"route": f"{route} ({code})", "value": cur, "change": route_chg})
     except Exception as e:
         print(f"  [KCCI 오류] {e}")
 
@@ -145,7 +157,7 @@ def get_indices():
                 if route == "Composite Index":
                     base["NCFI"].update({"value": cur, "change": wk, "date": NOW.strftime("%Y-%m-%d")})
                 elif route:
-                    ncfi_routes.append({"route": route, "value": cur})
+                    ncfi_routes.append({"route": route, "value": cur, "change": wk})
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
 
@@ -470,8 +482,11 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
                white-space:nowrap;flex-shrink:0}}
 .news-arrow{{font-size:.8rem;color:#9ca3af;flex-shrink:0}}
 
-/* 사이트 탭 */
+/* 사이트 섹션 */
 .sites-section{{margin-bottom:1rem}}
+.my-site-header{{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}}
+.my-site-label{{font-size:.8rem;font-weight:700;color:#111827}}
+.my-site-hint{{font-size:.7rem;color:#9ca3af;flex:1}}
 .site-tab-bar{{display:flex;gap:4px;margin-bottom:8px;
                border-bottom:1px solid #e5e7eb;padding-bottom:6px}}
 .site-tab{{padding:4px 14px;border-radius:5px;border:none;background:transparent;
@@ -481,7 +496,35 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .site-panel{{display:none}}
 .site-panel.active{{display:block}}
 
-/* 주요 사이트 카드 */
+/* 사이트 그룹 */
+.site-group-label{{font-size:.72rem;font-weight:600;color:#6b7280;
+                   text-transform:uppercase;letter-spacing:.5px;
+                   margin:.9rem 0 .4rem;padding-left:2px}}
+.site-link-row{{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:.5rem}}
+.site-link-item{{font-size:.72rem;padding:4px 10px;border-radius:5px;
+                 border:1px solid #e5e7eb;background:#fff;color:#374151;
+                 cursor:grab;transition:border-color .15s,background .15s;
+                 user-select:none}}
+.site-link-item a{{color:inherit;text-decoration:none;pointer-events:none}}
+.site-link-item:hover{{border-color:#2563eb;background:#eff6ff;color:#1e3a8a}}
+.site-link-item.dragging{{opacity:.4;cursor:grabbing}}
+.site-link-item.drag-over{{border-color:#2563eb;background:#dbeafe}}
+
+/* 내 사이트 드롭존 */
+.my-site-grid{{display:flex;flex-wrap:wrap;gap:7px;min-height:44px;
+               padding:8px;border:1.5px dashed #e5e7eb;border-radius:8px;
+               background:#f9fafb;margin-bottom:.5rem;
+               transition:border-color .15s,background .15s}}
+.my-site-grid.drag-active{{border-color:#2563eb;background:#eff6ff}}
+.my-empty{{font-size:.75rem;color:#9ca3af;align-self:center}}
+.my-site-item{{font-size:.72rem;padding:4px 10px;border-radius:5px;
+               border:1px solid #2563eb;background:#eff6ff;color:#1e3a8a;
+               cursor:grab;display:flex;align-items:center;gap:5px;
+               position:relative}}
+.my-site-item a{{color:inherit;text-decoration:none;pointer-events:none}}
+.my-del-btn{{font-size:.65rem;color:#9ca3af;background:none;border:none;
+             cursor:pointer;padding:0 2px;line-height:1;pointer-events:all}}
+.my-del-btn:hover{{color:#dc2626}}
 .site-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:.75rem}}
 .site-card{{background:#fff;border:1px solid #e5e7eb;border-radius:7px;
             padding:.65rem .9rem;text-decoration:none;color:inherit;
@@ -634,77 +677,102 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a><button class="idx-pin-btn" data-name="NCFI 닝보 노선별" data-url="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000">+</button>
   </div>
 
-  <div class="sec-label">최신 해운 뉴스</div>
+  <div class="sec-label">📰 최신 해운 뉴스</div>
   <div class="news-grid">
     {news_html}
   </div>
 
   <div class="sites-section">
-    <div class="sec-label">🔗 사이트</div>
-    <div class="site-tab-bar">
-      <button class="site-tab active" data-stab="stab-my">내 사이트</button>
-      <button class="site-tab" data-stab="stab-main">주요 사이트</button>
-      <button class="site-tab" data-stab="stab-aff">SM그룹 계열사</button>
+    <div class="sec-label">🔗 주요 사이트</div>
+
+    <!-- 내 사이트 (드래그 대상) -->
+    <div class="my-site-header">
+      <span class="my-site-label">⭐ 내 사이트</span>
+      <span class="my-site-hint">다른 섹션에서 드래그하거나 버튼으로 추가 · 이 브라우저에만 저장</span>
+      <button class="my-add-btn" id="addSiteBtn">+ 직접 추가</button>
+    </div>
+    <div class="my-site-grid droptarget" id="mySiteGrid">
+      <div class="my-empty" id="myEmpty">아래 섹션에서 항목을 드래그해서 추가하세요</div>
     </div>
 
-    <div class="site-panel active" id="stab-my">
-      <div class="my-site-header">
-        <span class="my-site-hint">드래그로 순서 변경 · 삭제 · 내 브라우저에만 저장</span>
-        <button class="my-add-btn" id="addSiteBtn">+ 사이트 추가</button>
-      </div>
-      <div class="my-site-grid" id="mySiteGrid">
-        <div class="my-empty" id="myEmpty">사이트를 추가해보세요</div>
-      </div>
+    <!-- 운임지수 -->
+    <div class="site-group-label">📈 운임지수</div>
+    <div class="site-link-row" id="group-idx">
+      <div class="site-link-item draggable" draggable="true" data-name="SCFI·KCCI·CCFI — surff.kr" data-url="https://surff.kr/indices"><a href="https://surff.kr/indices" target="_blank">SCFI·KCCI·CCFI — surff.kr</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="SCFI·CCFI·BDI — 국가물류통합정보센터" data-url="https://nlic.go.kr/nlic/ocnStatisticBoard.action"><a href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">SCFI·CCFI·BDI — 국가물류통합정보센터</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="BDI·BCI·BPI — 쉬핑뉴스넷" data-url="https://www.shippingnewsnet.com/sdata/page.html?term=1"><a href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">BDI·BCI·BPI — 쉬핑뉴스넷</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="KCCI — 한국해양진흥공사" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">KCCI — 한국해양진흥공사</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="Baltic Exchange" data-url="https://www.balticexchange.com/en/index.html"><a href="https://www.balticexchange.com/en/index.html" target="_blank">Baltic Exchange</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="SCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/scfinew.jsp"><a href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">SCFI — 상하이해운거래소</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="CCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/ccfinew.jsp"><a href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">CCFI — 상하이해운거래소</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="Freightos FBX" data-url="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/"><a href="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/" target="_blank">Freightos FBX</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="TradLinx 종합 차트" data-url="https://www.tradlinx.com/ko/freight-index"><a href="https://www.tradlinx.com/ko/freight-index" target="_blank">TradLinx 종합 차트</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="탱커 TCE·Worldscale" data-url="https://www.spotmarketcap.com/shipping"><a href="https://www.spotmarketcap.com/shipping" target="_blank">탱커 TCE·Worldscale</a></div>
     </div>
 
-    <div class="site-panel" id="stab-main">
-      <div class="site-category">뉴스 · 미디어</div>
-      <div class="site-grid">
-        <a class="site-card" href="https://www.ksg.co.kr/news/main_news.jsp" target="_blank">
-          <div class="site-card-name">코리아쉬핑가제트</div><div class="site-card-sub">국내 해운 전문 미디어</div></a>
-        <a class="site-card" href="https://www.shippingnewsnet.com/news/articleList.html?sc_sub_section_code=S2N1&view_type=sm" target="_blank">
-          <div class="site-card-name">쉬핑뉴스넷</div><div class="site-card-sub">국내 해운물류 뉴스</div></a>
-        <a class="site-card" href="http://www.maritimepress.co.kr/" target="_blank">
-          <div class="site-card-name">한국해운신문</div><div class="site-card-sub">해운·조선·항만물류</div></a>
-        <a class="site-card" href="https://www.klnews.co.kr/" target="_blank">
-          <div class="site-card-name">물류신문</div><div class="site-card-sub">물류 전문 매체</div></a>
-        <a class="site-card" href="https://maritime-executive.com/" target="_blank">
-          <div class="site-card-name">Maritime Executive</div><div class="site-card-sub">해외 해운 전문 (영문)</div></a>
-      </div>
-      <div class="site-category">기관 · 데이터</div>
-      <div class="site-grid">
-        <a class="site-card" href="https://www.kobc.or.kr/ebz/shippinginfo/main.do" target="_blank">
-          <div class="site-card-name">한국해양진흥공사</div><div class="site-card-sub">KCCI · 해운시황 보고서</div></a>
-        <a class="site-card" href="https://www.nlic.go.kr/nlic/transInPortCt.action" target="_blank">
-          <div class="site-card-name">국가물류통합정보센터</div><div class="site-card-sub">SCFI · CCFI · BDI</div></a>
-        <a class="site-card" href="https://surff.kr/indices" target="_blank">
-          <div class="site-card-name">surff.kr</div><div class="site-card-sub">운임지수 차트</div></a>
-        <a class="site-card" href="https://shipandbunker.com/prices" target="_blank">
-          <div class="site-card-name">Ship&Bunker</div><div class="site-card-sub">글로벌 벙커유 가격</div></a>
-      </div>
+    <!-- 연료·환경 -->
+    <div class="site-group-label">⛽ 연료·환경</div>
+    <div class="site-link-row" id="group-env">
+      <div class="site-link-item draggable" draggable="true" data-name="글로벌 벙커유 — Ship&Bunker" data-url="https://shipandbunker.com/prices"><a href="https://shipandbunker.com/prices" target="_blank">⛽ 글로벌 벙커유 — Ship&Bunker</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="EU-ETS 탄소배출권" data-url="https://shipandbunker.com/prices/ea/eu/eu-eua"><a href="https://shipandbunker.com/prices/ea/eu/eu-eua" target="_blank">💶 EU-ETS 탄소배출권</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="LNG 스팟 — LNG Prime" data-url="https://lngprime.com/"><a href="https://lngprime.com/" target="_blank">🔥 LNG 스팟 — LNG Prime</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="EUA 과거 가격" data-url="https://kr.investing.com/commodities/carbon-emissions-historical-data"><a href="https://kr.investing.com/commodities/carbon-emissions-historical-data" target="_blank">📉 EUA 과거 가격</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="JKM LNG 스팟" data-url="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures"><a href="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures" target="_blank">🌊 JKM LNG 스팟</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="벌크선 운영비·신조가" data-url="https://www.balticexchange.com/en/data-services/market-information0/indices.html"><a href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가</a></div>
     </div>
 
-    <div class="site-panel" id="stab-aff">
-      <div class="aff-grid">
-        <a class="aff-card" href="http://www.korealines.co.kr" target="_blank">
-          <div class="aff-name">대한해운</div><div class="aff-desc">전용선 · 벌크 · 탱커</div></a>
-        <a class="aff-card" href="https://www.smlines.com/kr/" target="_blank">
-          <div class="aff-name">SM상선</div><div class="aff-desc">컨테이너 전문 선사</div></a>
-        <a class="aff-card" href="http://www.smksc.co.kr/" target="_blank">
-          <div class="aff-name">대한상선</div><div class="aff-desc">벌크 · 종합자원 수송</div></a>
-        <a class="aff-card" href="https://klclng.com/" target="_blank">
-          <div class="aff-name">대한해운LNG</div><div class="aff-desc">LNG 전문 운송</div></a>
-        <a class="aff-card" href="https://www.klcsm.co.kr/" target="_blank">
-          <div class="aff-name">KLCSM</div><div class="aff-desc">선박관리 · 수리</div></a>
-        <a class="aff-card" href="http://www.cmship.co.kr/" target="_blank">
-          <div class="aff-name">창명해운</div><div class="aff-desc">벌크 · 특수화물</div></a>
-        <a class="aff-card" href="http://www.smlgi.co.kr/index" target="_blank">
-          <div class="aff-name">SM상선 경인터미널</div><div class="aff-desc">항만 · 물류 서비스</div></a>
-        <a class="aff-card" href="http://www.smlgp.co.kr/index" target="_blank">
-          <div class="aff-name">SM상선 김포터미널</div><div class="aff-desc">항만 · 내륙물류</div></a>
-        <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
-          <div class="aff-name">SM그룹 (해운부문)</div><div class="aff-desc">그룹 공식 홈페이지</div></a>
-      </div>
+    <!-- 통계·보고서 -->
+    <div class="site-group-label">📊 통계·보고서</div>
+    <div class="site-link-row" id="group-stat">
+      <div class="site-link-item draggable" draggable="true" data-name="해상 운송 통계" data-url="https://nlic.go.kr/nlic/seaStatisticBoard.action"><a href="https://nlic.go.kr/nlic/seaStatisticBoard.action" target="_blank">🚢 해상 운송 통계</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="KOBC 일간 건화물선 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000" target="_blank">📄 KOBC 일간 건화물선 보고서</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="KOBC 주간통합 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000" target="_blank">📄 KOBC 주간통합 보고서</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="KDCI 세부지수" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊 KDCI 세부지수</a></div>
+      <div class="site-link-item draggable" draggable="true" data-name="NCFI 닝보 노선별" data-url="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a></div>
+    </div>
+
+    <!-- 주요 해운 사이트 -->
+    <div class="site-group-label">📰 주요 해운 사이트</div>
+    <div class="site-grid">
+      <a class="site-card" href="https://www.ksg.co.kr/news/main_news.jsp" target="_blank">
+        <div class="site-card-name">코리아쉬핑가제트</div><div class="site-card-sub">국내 해운 전문 미디어</div></a>
+      <a class="site-card" href="https://www.shippingnewsnet.com/news/articleList.html?sc_sub_section_code=S2N1&view_type=sm" target="_blank">
+        <div class="site-card-name">쉬핑뉴스넷</div><div class="site-card-sub">국내 해운물류 뉴스</div></a>
+      <a class="site-card" href="http://www.maritimepress.co.kr/" target="_blank">
+        <div class="site-card-name">한국해운신문</div><div class="site-card-sub">해운·조선·항만물류</div></a>
+      <a class="site-card" href="https://www.klnews.co.kr/" target="_blank">
+        <div class="site-card-name">물류신문</div><div class="site-card-sub">물류 전문 매체</div></a>
+      <a class="site-card" href="https://www.kobc.or.kr/ebz/shippinginfo/main.do" target="_blank">
+        <div class="site-card-name">한국해양진흥공사</div><div class="site-card-sub">KCCI · 해운시황 보고서</div></a>
+      <a class="site-card" href="https://www.nlic.go.kr/nlic/transInPortCt.action" target="_blank">
+        <div class="site-card-name">국가물류통합정보센터</div><div class="site-card-sub">SCFI · CCFI · BDI</div></a>
+      <a class="site-card" href="https://surff.kr/indices" target="_blank">
+        <div class="site-card-name">surff.kr</div><div class="site-card-sub">운임지수 차트</div></a>
+      <a class="site-card" href="https://maritime-executive.com/" target="_blank">
+        <div class="site-card-name">Maritime Executive</div><div class="site-card-sub">해외 해운 전문 (영문)</div></a>
+    </div>
+
+    <!-- SM 계열사 -->
+    <div class="site-group-label">🚢 SM그룹 해운 계열사</div>
+    <div class="aff-grid">
+      <a class="aff-card" href="http://www.korealines.co.kr" target="_blank">
+        <div class="aff-name">대한해운</div><div class="aff-desc">전용선 · 벌크 · 탱커</div></a>
+      <a class="aff-card" href="https://www.smlines.com/kr/" target="_blank">
+        <div class="aff-name">SM상선</div><div class="aff-desc">컨테이너 전문 선사</div></a>
+      <a class="aff-card" href="http://www.smksc.co.kr/" target="_blank">
+        <div class="aff-name">대한상선</div><div class="aff-desc">벌크 · 종합자원 수송</div></a>
+      <a class="aff-card" href="https://klclng.com/" target="_blank">
+        <div class="aff-name">대한해운LNG</div><div class="aff-desc">LNG 전문 운송</div></a>
+      <a class="aff-card" href="https://www.klcsm.co.kr/" target="_blank">
+        <div class="aff-name">KLCSM</div><div class="aff-desc">선박관리 · 수리</div></a>
+      <a class="aff-card" href="http://www.cmship.co.kr/" target="_blank">
+        <div class="aff-name">창명해운</div><div class="aff-desc">벌크 · 특수화물</div></a>
+      <a class="aff-card" href="http://www.smlgi.co.kr/index" target="_blank">
+        <div class="aff-name">SM상선 경인터미널</div><div class="aff-desc">항만 · 물류 서비스</div></a>
+      <a class="aff-card" href="http://www.smlgp.co.kr/index" target="_blank">
+        <div class="aff-name">SM상선 김포터미널</div><div class="aff-desc">항만 · 내륙물류</div></a>
+      <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
+        <div class="aff-name">SM그룹 (해운부문)</div><div class="aff-desc">그룹 공식 홈페이지</div></a>
     </div>
   </div>
 
@@ -743,8 +811,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     btn.addEventListener('click', () => {{
       const allBodies = document.querySelectorAll('.acc-body');
       const allBtns = document.querySelectorAll('.acc-toggle');
-      const body = document.getElementById(btn.dataset.target);
-      const isOpen = body.classList.contains('open');
+      const isOpen = document.getElementById(btn.dataset.target).classList.contains('open');
       if (isOpen) {{
         allBodies.forEach(b => b.classList.remove('open'));
         allBtns.forEach(b => b.classList.remove('open'));
@@ -755,99 +822,95 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     }});
   }});
 
-  // ── 사이트 탭 전환
-  document.querySelectorAll('.site-tab').forEach(t => {{
-    t.addEventListener('click', () => {{
-      document.querySelectorAll('.site-tab').forEach(x => x.classList.remove('active'));
-      document.querySelectorAll('.site-panel').forEach(x => x.classList.remove('active'));
-      t.classList.add('active');
-      document.getElementById(t.dataset.stab).classList.add('active');
-    }});
-  }});
+  // ── 내 사이트 드래그앤드롭
+  const MY_KEY = 'wavedesk_my_sites_v3';
+  const myGrid = document.getElementById('mySiteGrid');
+  const myEmpty = document.getElementById('myEmpty');
 
-  // ── 내 사이트 (지수 탭) — localStorage + drag
-  const IDX_KEY = 'wavedesk_my_idx_v1';
-  const idxGrid = document.getElementById('myIdxGrid');
-  const idxEmpty = document.getElementById('myIdxEmpty');
-
-  function getIdxLinks() {{
-    try {{ return JSON.parse(localStorage.getItem(IDX_KEY)) || []; }}
+  function getMyLinks() {{
+    try {{ return JSON.parse(localStorage.getItem(MY_KEY)) || []; }}
     catch(e) {{ return []; }}
   }}
-  function saveIdxLinks(links) {{ localStorage.setItem(IDX_KEY, JSON.stringify(links)); }}
+  function saveMyLinks(links) {{ localStorage.setItem(MY_KEY, JSON.stringify(links)); }}
 
-  function updatePinBtns() {{
-    const links = getIdxLinks();
-    const urls = new Set(links.map(l => l.url));
-    document.querySelectorAll('.idx-pin-btn').forEach(btn => {{
-      if (urls.has(btn.dataset.url)) {{
-        btn.classList.add('pinned'); btn.textContent = '✓';
-      }} else {{
-        btn.classList.remove('pinned'); btn.textContent = '+';
-      }}
-    }});
-  }}
+  let dragData = null; // {{name, url, fromMy: bool, fromIdx: int}}
 
-  let idxDragSrc = null;
-  function renderIdx() {{
-    const links = getIdxLinks();
-    idxGrid.querySelectorAll('.my-idx-card').forEach(c => c.remove());
-    idxEmpty.style.display = links.length ? 'none' : 'block';
+  function renderMy() {{
+    myGrid.querySelectorAll('.my-site-item').forEach(el => el.remove());
+    const links = getMyLinks();
+    myEmpty.style.display = links.length ? 'none' : 'flex';
     links.forEach((l, i) => {{
-      const div = document.createElement('div');
-      div.className = 'my-idx-card'; div.draggable = true; div.dataset.idx = i;
-      div.innerHTML = `<a href="${{l.url}}" target="_blank" style="color:inherit;text-decoration:none">${{l.name}}</a>
-        <button class="my-idx-del" title="삭제">×</button>`;
-      div.querySelector('.my-idx-del').onclick = (e) => {{
-        e.stopPropagation();
-        const updated = getIdxLinks(); updated.splice(i, 1); saveIdxLinks(updated);
-        renderIdx(); updatePinBtns();
+      const el = document.createElement('div');
+      el.className = 'my-site-item';
+      el.draggable = true;
+      el.innerHTML = `<a href="${{l.url}}" target="_blank">${{l.name}}</a>
+        <button class="my-del-btn" title="삭제">×</button>`;
+      el.querySelector('.my-del-btn').onclick = () => {{
+        const updated = getMyLinks(); updated.splice(i, 1); saveMyLinks(updated); renderMy();
       }};
-      div.addEventListener('dragstart', e => {{
-        idxDragSrc = i; div.classList.add('dragging');
+      // 내 사이트 간 드래그 (순서 변경)
+      el.addEventListener('dragstart', e => {{
+        dragData = {{name: l.name, url: l.url, fromMy: true, fromIdx: i}};
+        el.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
       }});
-      div.addEventListener('dragend', () => div.classList.remove('dragging'));
-      div.addEventListener('dragover', e => {{ e.preventDefault(); }});
-      div.addEventListener('drop', e => {{
+      el.addEventListener('dragend', () => el.classList.remove('dragging'));
+      el.addEventListener('dragover', e => {{ e.preventDefault(); }});
+      el.addEventListener('drop', e => {{
         e.preventDefault();
-        if (idxDragSrc === null || idxDragSrc === i) return;
-        const updated = getIdxLinks();
-        const [moved] = updated.splice(idxDragSrc, 1);
+        if (!dragData || !dragData.fromMy || dragData.fromIdx === i) return;
+        const updated = getMyLinks();
+        const [moved] = updated.splice(dragData.fromIdx, 1);
         updated.splice(i, 0, moved);
-        saveIdxLinks(updated); idxDragSrc = null; renderIdx();
+        saveMyLinks(updated); dragData = null; renderMy();
       }});
-      idxGrid.appendChild(div);
+      myGrid.appendChild(el);
     }});
-    updatePinBtns();
   }}
 
-  // + 버튼으로 내 사이트에 추가
-  document.querySelectorAll('.idx-pin-btn').forEach(btn => {{
-    btn.addEventListener('click', () => {{
-      const links = getIdxLinks();
-      const url = btn.dataset.url;
-      const name = btn.dataset.name;
-      if (links.find(l => l.url === url)) {{
-        // 이미 있으면 제거
-        const idx = links.findIndex(l => l.url === url);
-        links.splice(idx, 1);
-      }} else {{
-        links.push({{name, url}});
+  // 내 사이트 드롭존 이벤트
+  myGrid.addEventListener('dragover', e => {{
+    e.preventDefault(); myGrid.classList.add('drag-active');
+  }});
+  myGrid.addEventListener('dragleave', () => myGrid.classList.remove('drag-active'));
+  myGrid.addEventListener('drop', e => {{
+    e.preventDefault(); myGrid.classList.remove('drag-active');
+    if (!dragData || dragData.fromMy) return; // 내 사이트 간 이동은 위에서 처리
+    const links = getMyLinks();
+    if (!links.find(l => l.url === dragData.url)) {{
+      links.push({{name: dragData.name, url: dragData.url}});
+      saveMyLinks(links); renderMy();
+    }}
+    dragData = null;
+  }});
+
+  // 각 섹션 아이템 드래그 이벤트
+  document.querySelectorAll('.site-link-item.draggable').forEach(item => {{
+    item.addEventListener('dragstart', e => {{
+      dragData = {{name: item.dataset.name, url: item.dataset.url, fromMy: false}};
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'copy';
+    }});
+    item.addEventListener('dragend', () => item.classList.remove('dragging'));
+    // 클릭으로도 추가 가능 (더블클릭)
+    item.addEventListener('dblclick', () => {{
+      const links = getMyLinks();
+      if (!links.find(l => l.url === item.dataset.url)) {{
+        links.push({{name: item.dataset.name, url: item.dataset.url}});
+        saveMyLinks(links); renderMy();
       }}
-      saveIdxLinks(links); renderIdx();
     }});
   }});
 
   // 직접 추가 버튼
-  const addIdxBtn = document.getElementById('addIdxBtn');
+  const addBtn = document.getElementById('addSiteBtn');
   const modal = document.getElementById('addLinkModal');
   const cancelBtn = document.getElementById('cancelLinkBtn');
   const saveBtn = document.getElementById('saveLinkBtn');
   const nameInput = document.getElementById('newLinkName');
   const urlInput = document.getElementById('newLinkUrl');
 
-  if (addIdxBtn) addIdxBtn.onclick = () => {{ modal.classList.add('open'); nameInput.focus(); }};
+  if (addBtn) addBtn.onclick = () => {{ modal.classList.add('open'); nameInput.focus(); }};
   if (cancelBtn) cancelBtn.onclick = () => {{
     modal.classList.remove('open'); nameInput.value = ''; urlInput.value = '';
   }};
@@ -857,73 +920,17 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     if (!url) return;
     if (!/^https?:\\/\\//.test(url)) url = 'https://' + url;
     if (!name) name = url.replace(/^https?:\\/\\//, '').split('/')[0];
-    const links = getIdxLinks(); links.push({{name, url}});
-    saveIdxLinks(links); nameInput.value = ''; urlInput.value = '';
-    modal.classList.remove('open'); renderIdx();
+    const links = getMyLinks(); links.push({{name, url}});
+    saveMyLinks(links); nameInput.value = ''; urlInput.value = '';
+    modal.classList.remove('open'); renderMy();
   }};
   if (modal) modal.onclick = e => {{ if (e.target === modal && cancelBtn) cancelBtn.onclick(); }};
 
-  // ── 하단 내 사이트 (사이트 탭) — 기존 기능 유지
-  const SITE_KEY = 'wavedesk_my_sites_v2';
-  const siteGrid = document.getElementById('mySiteGrid');
-
-  function getSiteLinks() {{
-    try {{ return JSON.parse(localStorage.getItem(SITE_KEY)) || []; }}
-    catch(e) {{ return []; }}
-  }}
-  function saveSiteLinks(links) {{ localStorage.setItem(SITE_KEY, JSON.stringify(links)); }}
-
-  let siteDragSrc = null;
-  function renderSite() {{
-    if (!siteGrid) return;
-    siteGrid.querySelectorAll('.my-card').forEach(c => c.remove());
-    const empty = document.getElementById('myEmpty');
-    const links = getSiteLinks();
-    if (empty) empty.style.display = links.length ? 'none' : 'block';
-    links.forEach((l, i) => {{
-      const a = document.createElement('a');
-      a.className = 'my-card'; a.href = l.url; a.target = '_blank';
-      a.draggable = true; a.dataset.idx = i;
-      a.innerHTML = `<div class="my-card-name">${{l.name}}</div>
-        <div class="my-card-sub">내 사이트</div>
-        <button class="my-del-btn" title="삭제">×</button>`;
-      a.querySelector('.my-del-btn').onclick = (e) => {{
-        e.preventDefault(); e.stopPropagation();
-        const updated = getSiteLinks(); updated.splice(i, 1); saveSiteLinks(updated); renderSite();
-      }};
-      a.addEventListener('dragstart', e => {{
-        siteDragSrc = i; a.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-      }});
-      a.addEventListener('dragend', () => a.classList.remove('dragging'));
-      a.addEventListener('dragover', e => {{ e.preventDefault(); }});
-      a.addEventListener('drop', e => {{
-        e.preventDefault();
-        if (siteDragSrc === null || siteDragSrc === i) return;
-        const updated = getSiteLinks();
-        const [moved] = updated.splice(siteDragSrc, 1);
-        updated.splice(i, 0, moved);
-        saveSiteLinks(updated); siteDragSrc = null; renderSite();
-      }});
-      siteGrid.appendChild(a);
-    }});
-  }}
-
-  const addSiteBtn = document.getElementById('addSiteBtn');
-  if (addSiteBtn) addSiteBtn.onclick = () => {{ modal.classList.add('open'); nameInput.focus(); }};
-
-  renderIdx();
-  renderSite();
+  renderMy();
 }})();
 </script>
 </body>
 </html>"""
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# 4. 실행
-# ══════════════════════════════════════════════════════════════════════════
-
 if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser()
