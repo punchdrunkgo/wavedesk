@@ -501,11 +501,11 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
                    text-transform:uppercase;letter-spacing:.5px;
                    margin:.9rem 0 .4rem;padding-left:2px}}
 .site-link-row{{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:.5rem}}
-.site-link-item{{font-size:.72rem;padding:4px 10px;border-radius:5px;
+.site-link-item{{font-size:.78rem;padding:5px 12px;border-radius:6px;
                  border:1px solid #e5e7eb;background:#fff;color:#374151;
                  cursor:grab;transition:border-color .15s,background .15s;
-                 user-select:none}}
-.site-link-item a{{color:inherit;text-decoration:none;pointer-events:none}}
+                 user-select:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif}}
+.site-link-item a{{color:inherit;text-decoration:none;pointer-events:all}}
 .site-link-item:hover{{border-color:#2563eb;background:#eff6ff;color:#1e3a8a}}
 .site-link-item.dragging{{opacity:.4;cursor:grabbing}}
 .site-link-item.drag-over{{border-color:#2563eb;background:#dbeafe}}
@@ -630,53 +630,6 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     {accordions_html}
   </div>
 
-  <div class="idx-tab-bar">
-    <button class="idx-tab active" data-tab="tab-my">내 사이트</button>
-    <button class="idx-tab" data-tab="tab-idx">운임지수</button>
-    <button class="idx-tab" data-tab="tab-env">연료·환경</button>
-    <button class="idx-tab" data-tab="tab-stat">통계·보고서</button>
-  </div>
-
-  <div class="idx-tab-panel active" id="tab-my">
-    <div class="my-idx-header">
-      <span class="my-idx-hint">다른 탭의 + 버튼으로 추가 · 드래그로 순서 변경 · 이 브라우저에만 저장</span>
-      <button class="my-add-btn" id="addIdxBtn">+ 직접 추가</button>
-    </div>
-    <div class="my-idx-grid" id="myIdxGrid">
-      <div class="my-idx-empty" id="myIdxEmpty">다른 탭에서 + 버튼을 눌러 추가하거나, 직접 추가하세요</div>
-    </div>
-  </div>
-
-  <div class="idx-tab-panel" id="tab-idx">
-    <a class="idx-link-btn" href="https://surff.kr/indices" target="_blank">SCFI·KCCI·CCFI — surff.kr</a><button class="idx-pin-btn" data-name="SCFI·KCCI·CCFI — surff.kr" data-url="https://surff.kr/indices">+</button>
-    <a class="idx-link-btn" href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">SCFI·CCFI·BDI — 국가물류통합정보센터</a><button class="idx-pin-btn" data-name="SCFI·CCFI·BDI — 국가물류통합정보센터" data-url="https://nlic.go.kr/nlic/ocnStatisticBoard.action">+</button>
-    <a class="idx-link-btn" href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">BDI·BCI·BPI — 쉬핑뉴스넷</a><button class="idx-pin-btn" data-name="BDI·BCI·BPI — 쉬핑뉴스넷" data-url="https://www.shippingnewsnet.com/sdata/page.html?term=1">+</button>
-    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">KCCI — 한국해양진흥공사</a><button class="idx-pin-btn" data-name="KCCI — 한국해양진흥공사" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000">+</button>
-    <a class="idx-link-btn" href="https://www.balticexchange.com/en/index.html" target="_blank">Baltic Exchange</a><button class="idx-pin-btn" data-name="Baltic Exchange" data-url="https://www.balticexchange.com/en/index.html">+</button>
-    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">SCFI — 상하이해운거래소</a><button class="idx-pin-btn" data-name="SCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/scfinew.jsp">+</button>
-    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">CCFI — 상하이해운거래소</a><button class="idx-pin-btn" data-name="CCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/ccfinew.jsp">+</button>
-    <a class="idx-link-btn" href="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/" target="_blank">Freightos FBX</a><button class="idx-pin-btn" data-name="Freightos FBX" data-url="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/">+</button>
-    <a class="idx-link-btn" href="https://www.tradlinx.com/ko/freight-index" target="_blank">TradLinx 종합 차트</a><button class="idx-pin-btn" data-name="TradLinx 종합 차트" data-url="https://www.tradlinx.com/ko/freight-index">+</button>
-    <a class="idx-link-btn" href="https://www.spotmarketcap.com/shipping" target="_blank">탱커 TCE·Worldscale</a><button class="idx-pin-btn" data-name="탱커 TCE·Worldscale" data-url="https://www.spotmarketcap.com/shipping">+</button>
-  </div>
-
-  <div class="idx-tab-panel" id="tab-env">
-    <a class="idx-link-btn" href="https://shipandbunker.com/prices" target="_blank">⛽ 글로벌 벙커유 — Ship&Bunker</a><button class="idx-pin-btn" data-name="글로벌 벙커유 — Ship&Bunker" data-url="https://shipandbunker.com/prices">+</button>
-    <a class="idx-link-btn" href="https://shipandbunker.com/prices/ea/eu/eu-eua" target="_blank">💶 EU-ETS 탄소배출권</a><button class="idx-pin-btn" data-name="EU-ETS 탄소배출권" data-url="https://shipandbunker.com/prices/ea/eu/eu-eua">+</button>
-    <a class="idx-link-btn" href="https://lngprime.com/" target="_blank">🔥 LNG 스팟 — LNG Prime</a><button class="idx-pin-btn" data-name="LNG 스팟 — LNG Prime" data-url="https://lngprime.com/">+</button>
-    <a class="idx-link-btn" href="https://kr.investing.com/commodities/carbon-emissions-historical-data" target="_blank">📉 EUA 과거 가격</a><button class="idx-pin-btn" data-name="EUA 과거 가격" data-url="https://kr.investing.com/commodities/carbon-emissions-historical-data">+</button>
-    <a class="idx-link-btn" href="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures" target="_blank">🌊 JKM LNG 스팟</a><button class="idx-pin-btn" data-name="JKM LNG 스팟" data-url="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures">+</button>
-    <a class="idx-link-btn" href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가</a><button class="idx-pin-btn" data-name="벌크선 운영비·신조가 — Baltic" data-url="https://www.balticexchange.com/en/data-services/market-information0/indices.html">+</button>
-  </div>
-
-  <div class="idx-tab-panel" id="tab-stat">
-    <a class="idx-link-btn" href="https://nlic.go.kr/nlic/seaStatisticBoard.action" target="_blank">🚢 해상 운송 통계</a><button class="idx-pin-btn" data-name="해상 운송 통계" data-url="https://nlic.go.kr/nlic/seaStatisticBoard.action">+</button>
-    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000" target="_blank">📄 KOBC 일간 건화물선 보고서</a><button class="idx-pin-btn" data-name="KOBC 일간 건화물선 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000">+</button>
-    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000" target="_blank">📄 KOBC 주간통합 보고서</a><button class="idx-pin-btn" data-name="KOBC 주간통합 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000">+</button>
-    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊 KDCI 세부지수</a><button class="idx-pin-btn" data-name="KDCI 세부지수" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000">+</button>
-    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a><button class="idx-pin-btn" data-name="NCFI 닝보 노선별" data-url="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000">+</button>
-  </div>
-
   <div class="sec-label">📰 최신 해운 뉴스</div>
   <div class="news-grid">
     {news_html}
@@ -796,16 +749,6 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 <script>
 (function() {{
-  // ── 지수 탭 전환
-  document.querySelectorAll('.idx-tab').forEach(t => {{
-    t.addEventListener('click', () => {{
-      document.querySelectorAll('.idx-tab').forEach(x => x.classList.remove('active'));
-      document.querySelectorAll('.idx-tab-panel').forEach(x => x.classList.remove('active'));
-      t.classList.add('active');
-      document.getElementById(t.dataset.tab).classList.add('active');
-    }});
-  }});
-
   // ── 아코디언 (하나 열면 전부 열림)
   document.querySelectorAll('.acc-toggle').forEach(btn => {{
     btn.addEventListener('click', () => {{
