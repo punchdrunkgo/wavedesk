@@ -431,7 +431,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
             letter-spacing:.8px;color:#6b7280;margin-bottom:.5rem}}
 
 /* 지수 카드 (4열) */
-.idx-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:.5rem}}
+.idx-grid{{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:.5rem}}
 .idx-card{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
            padding:.7rem 1rem;text-decoration:none;color:inherit;
            transition:border-color .15s;display:block}}
@@ -599,6 +599,21 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 .my-add-btn{{display:none}} /* 상단 직접추가 버튼 숨김 */
 
+/* EUA D-Day 박스 */
+.eua-box{{background:#fff;border:1px solid #e5e7eb;border-radius:12px;
+          padding:1rem 1.25rem;margin-bottom:.75rem}}
+.eua-title{{font-size:.8rem;font-weight:600;color:#1e3a8a;margin-bottom:.5rem}}
+.eua-body{{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:.4rem}}
+.eua-item{{display:flex;align-items:center;gap:8px;padding:6px 12px;
+           border-radius:8px;background:#f8faff;border:1px solid #e5e7eb}}
+.eua-year{{font-size:.7rem;color:#6b7280;font-weight:600}}
+.eua-date{{font-size:.75rem;color:#374151}}
+.eua-dday{{font-size:.75rem;font-weight:700;padding:2px 7px;border-radius:4px}}
+.eua-dday.near{{background:#fee2e2;color:#dc2626}}
+.eua-dday.mid{{background:#fef3c7;color:#d97706}}
+.eua-dday.far{{background:#e0f2fe;color:#0369a1}}
+.eua-note{{font-size:.68rem;color:#9ca3af}}
+
 /* 안내 박스 */
 .guide-box{{background:#fff;border:1px solid #e5e7eb;border-radius:12px;
             padding:1rem 1.25rem;margin-bottom:.75rem}}
@@ -636,6 +651,13 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
   <div class="sec-label">📊 해운 시황 지수</div>
   <div class="idx-grid">{idx_html}
+    <a class="idx-card" href="https://finance.naver.com/marketindex/" target="_blank">
+      <div class="idx-label">원달러환율</div>
+      <div class="idx-key">USD/KRW</div>
+      <div class="idx-val" id="usdkrw-live">—</div>
+      <div class="idx-chg neu">실시간 · 네이버금융</div>
+      <div class="idx-date">페이지 로드 시 갱신</div>
+    </a>
   </div>
 
   <div class="acc-wrap">
@@ -693,6 +715,9 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <div class="site-link-item draggable" draggable="true" data-name="KOBC 주간통합 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000" target="_blank">📄 KOBC 주간통합 보고서</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
       <div class="site-link-item draggable" draggable="true" data-name="KDCI 세부지수" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊 KDCI 세부지수</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
       <div class="site-link-item draggable" draggable="true" data-name="NCFI 닝보 노선별" data-url="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="EMSA THETIS MRV" data-url="https://thetis.emsa.europa.eu/"><a href="https://thetis.emsa.europa.eu/" target="_blank">🇪🇺 EMSA THETIS MRV</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="KR GEARS (탈탄소 플랫폼)" data-url="https://gears.krs.co.kr/"><a href="https://gears.krs.co.kr/" target="_blank">🔰 KR GEARS</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+      <div class="site-link-item draggable" draggable="true" data-name="KOMSA SEM (온실가스 시스템)" data-url="https://sem.komsa.or.kr/"><a href="https://sem.komsa.or.kr/" target="_blank">♻️ KOMSA SEM</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
     </div>
 
     <!-- 주요 해운 사이트 - 국내/해외 신문만 -->
@@ -706,14 +731,18 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
         <div class="site-card-name">한국해운신문</div><div class="site-card-sub">해운·조선·항만물류</div></a>
       <a class="site-card" href="https://www.klnews.co.kr/" target="_blank">
         <div class="site-card-name">물류신문</div><div class="site-card-sub">물류 전문 매체</div></a>
+      <a class="site-card" href="http://www.haesanews.com/" target="_blank">
+        <div class="site-card-name">해사신문</div><div class="site-card-sub">해운·해사·환경 전문지</div></a>
+      <a class="site-card" href="https://www.haesainfo.com/news/articleList.html?view_type=sm" target="_blank">
+        <div class="site-card-name">해사정보신문</div><div class="site-card-sub">해운·항만·조선 뉴스</div></a>
       <a class="site-card" href="https://maritime-executive.com/" target="_blank">
         <div class="site-card-name">Maritime Executive</div><div class="site-card-sub">해외 해운 전문 (영문)</div></a>
       <a class="site-card" href="https://splash247.com/" target="_blank">
         <div class="site-card-name">Splash247</div><div class="site-card-sub">해외 해운 뉴스 (영문)</div></a>
     </div>
 
-    <!-- 직접 추가 버튼 - 주요 사이트와 SM 계열사 사이 -->
-    <div style="margin:.75rem 0;padding:.65rem 0;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:10px">
+    <!-- 직접 추가 버튼 - 주요 해운 사이트와 SM 계열사 사이 -->
+    <div style="margin:.65rem 0;padding:.55rem 0;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:10px">
       <button class="direct-add-btn" id="addSiteBtn">＋ 내 사이트에 직접 추가</button>
       <span style="font-size:.67rem;color:#86868b">URL을 직접 입력해서 내 사이트에 추가하세요</span>
     </div>
@@ -754,17 +783,26 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     </div>
   </div>
 
-  <!-- 안내 박스 -->
-  <div class="guide-box">
-    <div class="guide-title">💡 WaveDesk를 크롬 시작 페이지로 설정하는 방법</div>
-    <div class="guide-steps">
-      <div class="guide-step"><span class="guide-num">1</span>크롬 우측 상단 <b>⋮</b> (점 세 개) 클릭</div>
-      <div class="guide-step"><span class="guide-num">2</span><b>설정</b> 클릭</div>
-      <div class="guide-step"><span class="guide-num">3</span>좌측 메뉴에서 <b>시작 그룹</b> 선택</div>
-      <div class="guide-step"><span class="guide-num">4</span><b>특정 페이지 또는 페이지 집합 열기</b> 선택</div>
-      <div class="guide-step"><span class="guide-num">5</span><b>새 페이지 추가</b> 클릭 후 이 페이지의 URL 입력 → 저장</div>
+  <!-- EUA D-Day + 안내 박스 (계열사와 간격) -->
+  <div style="margin-top:1.5rem">
+    <div class="eua-box">
+      <div class="eua-title">💶 EU-ETS EUA 선물 만기일</div>
+      <div class="eua-body" id="euaDday"></div>
+      <div class="eua-note">EUA 선물 최종거래일 기준 (매년 12월 세 번째 월요일) · <a href="https://www.ice.com/products/197/EUA-Futures/expiry" target="_blank" style="color:#2563eb">ICE 공식 만기일 확인 ↗</a></div>
     </div>
-    <div class="guide-note">크롬을 열 때마다 WaveDesk가 자동으로 표시됩니다. 뉴스와 지수는 매일 08:00 KST에 자동 업데이트됩니다.</div>
+
+    <!-- 안내 박스 -->
+    <div class="guide-box">
+      <div class="guide-title">💡 WaveDesk를 크롬 시작 페이지로 설정하는 방법</div>
+      <div class="guide-steps">
+        <div class="guide-step"><span class="guide-num">1</span>크롬 우측 상단 <b>⋮</b> (점 세 개) 클릭</div>
+        <div class="guide-step"><span class="guide-num">2</span><b>설정</b> 클릭</div>
+        <div class="guide-step"><span class="guide-num">3</span>좌측 메뉴 <b>시작 그룹</b> 선택</div>
+        <div class="guide-step"><span class="guide-num">4</span><b>특정 페이지 또는 페이지 집합 열기</b> 선택</div>
+        <div class="guide-step"><span class="guide-num">5</span><b>새 페이지 추가</b> 후 이 페이지 URL 입력 → 저장</div>
+      </div>
+      <div class="guide-note">크롬을 열 때마다 WaveDesk가 자동으로 표시됩니다. 뉴스와 지수는 매일 08:00 KST에 자동 업데이트됩니다.</div>
+    </div>
   </div>
 
   <div class="footer">
@@ -925,6 +963,40 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   if (modal) modal.onclick = e => {{ if (e.target === modal && cancelBtn) cancelBtn.onclick(); }};
 
   renderMy(); updatePinDots();
+
+  // ── EUA 선물 만기일 D-Day (매년 12월 세 번째 월요일)
+  function euaExpiry(year) {{
+    // 12월 1일부터 세 번째 월요일 찾기
+    const d = new Date(year, 11, 1);
+    const dow = d.getDay(); // 0=일, 1=월
+    const firstMon = dow <= 1 ? 1 + (1 - dow + 7) % 7 : 1 + (8 - dow);
+    return new Date(year, 11, firstMon + 14); // 세 번째 월요일
+  }}
+  const euaEl = document.getElementById('euaDday');
+  if (euaEl) {{
+    const now = new Date();
+    const years = [now.getFullYear(), now.getFullYear() + 1];
+    euaEl.innerHTML = years.map(yr => {{
+      const exp = euaExpiry(yr);
+      const diff = Math.ceil((exp - now) / 86400000);
+      if (diff < 0) return '';
+      const cls = diff <= 60 ? 'near' : diff <= 180 ? 'mid' : 'far';
+      const label = diff === 0 ? 'D-DAY' : `D-${{diff}}`;
+      const dateStr = exp.toLocaleDateString('ko-KR', {{year:'numeric',month:'long',day:'numeric'}});
+      return `<div class="eua-item"><span class="eua-year">${{yr}}</span><span class="eua-date">${{dateStr}}</span><span class="eua-dday ${{cls}}">${{label}}</span></div>`;
+    }}).filter(Boolean).join('');
+  }}
+
+  // ── 원달러 환율 (페이지 로드 시 1회, 인덱스 카드에 실시간 표시)
+  fetch('https://api.exchangerate.fun/latest?base=USD')
+    .then(r => r.json())
+    .then(data => {{
+      const rate = data && data.rates && data.rates.KRW;
+      if (!rate) return;
+      const el = document.getElementById('usdkrw-live');
+      if (el) el.textContent = Math.round(rate).toLocaleString() + ' ₩';
+    }})
+    .catch(() => {{}});
 }})();
 </script>
 </body>
