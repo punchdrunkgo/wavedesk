@@ -181,6 +181,38 @@ def get_indices():
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
 
+    # USD/KRW 환율 — api.exchangerate.fun (무료, API키 불필요)
+    try:
+        r = requests.get("https://api.exchangerate.fun/latest?base=USD",
+                         headers=HEADERS, timeout=10)
+        data = r.json()
+        krw = data["rates"].get("KRW", 0)
+        if krw:
+            # 전일 환율 가져오기 (어제 날짜)
+            yesterday = (NOW - timedelta(days=1)).strftime("%Y-%m-%d")
+            r2 = requests.get(f"https://api.exchangerate.fun/historical?date={yesterday}&base=USD",
+                              headers=HEADERS, timeout=10)
+            data2 = r2.json()
+            krw_prev = data2.get("rates", {}).get("KRW", krw)
+            chg_val = krw - krw_prev
+            chg_pct = round(chg_val / krw_prev * 100, 2)
+            chg_str = f"+{chg_pct}%" if chg_pct >= 0 else f"{chg_pct}%"
+            base["USD/KRW"] = {
+                "value": f"{round(krw):,}",
+                "change": chg_str,
+                "label": "원달러환율",
+                "date": NOW.strftime("%Y-%m-%d"),
+                "url": "https://finance.naver.com/marketindex/",
+                "note": "일 1회 · exchangerate.fun"
+            }
+    except Exception as e:
+        print(f"  [환율 오류] {e}")
+        base["USD/KRW"] = {
+            "value": "—", "change": "", "label": "원달러환율",
+            "date": "", "url": "https://finance.naver.com/marketindex/",
+            "note": "일 1회 · exchangerate.fun"
+        }
+
     return base, kdci_routes, kcci_routes, ncfi_routes
 
 
@@ -290,6 +322,67 @@ def get_news():
     return result
 
 
+# SM 해운 계열사 전체 이름 (Google 뉴스 검색용)
+SM_SHIPPING_COMPANIES = [
+    "대한해운", "SM상선", "대한상선", "대한해운LNG", "대한해운엘엔지",
+    "KLCSM", "창명해운", "SM상선 경인터미널", "SM상선 김포터미널",
+]
+SM_GROUP_QUERIES = [
+    "SM그룹+해운",
+    "대한해운+SM그룹",
+    "SM상선+해운",
+    "KLCSM+선박",
+    "창명해운+대한상선",
+]
+
+def get_sm_news():
+    """SM그룹 해운 계열사 뉴스 - Google RSS, 3일치"""
+    items = []
+    cutoff = NOW - timedelta(days=3)
+
+    for q in SM_GROUP_QUERIES:
+        url = f"https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+            root = ET.fromstring(r.content)
+            for item in root.findall(".//item")[:8]:
+                title = (item.findtext("title") or "").strip()
+                link  = (item.findtext("link") or "").strip()
+                pub   = (item.findtext("pubDate") or "").strip()
+                src_el = item.find("source")
+                lbl = src_el.text.strip() if src_el is not None else "SM그룹"
+                # 날짜 필터: 3일 이내
+                if pub:
+                    try:
+                        pub_dt = datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z")
+                        pub_dt = pub_dt.replace(tzinfo=timezone.utc).astimezone(KST)
+                        if pub_dt < cutoff:
+                            continue
+                    except Exception:
+                        pass
+                # 계열사 관련 여부 확인
+                is_shipping = any(c in title for c in SM_SHIPPING_COMPANIES)
+                category = "해운" if is_shipping else "그룹"
+                if title and link:
+                    items.append({
+                        "title": title, "url": link,
+                        "label": lbl, "category": category
+                    })
+        except Exception:
+            pass
+
+    # 중복 제거 + 해운 계열사 우선 정렬
+    seen, result = set(), []
+    for n in items:
+        key = n["title"][:25]
+        if key not in seen:
+            seen.add(key)
+            result.append(n)
+
+    result.sort(key=lambda x: (0 if x["category"] == "해운" else 1))
+    return result[:8]  # 최대 8건 (2열 4행)
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # 3. HTML 생성
 # ══════════════════════════════════════════════════════════════════════════
@@ -314,7 +407,7 @@ def dir_cls(chg):
     return "neu", "—"
 
 
-def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news):
+def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news):
     # 지수 카드 (종합지수 4개)
     idx_html = ""
     for key, d in indices.items():
@@ -384,6 +477,31 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news):
             <span class="news-arrow">↗</span>
           </a>"""
         return rows
+
+    # SM그룹 계열사 뉴스 HTML (2열 2행 기본, 초과 시 스크롤)
+    sm_rows = ""
+    for n in sm_news:
+        badge_cls = "sm-badge-ship" if n["category"] == "해운" else "sm-badge-group"
+        badge_txt = "해운" if n["category"] == "해운" else "그룹"
+        title = n["title"][:60] + ("…" if len(n["title"]) > 60 else "")
+        sm_rows += f"""
+          <a class="sm-news-row" href="{n['url']}" target="_blank" rel="noopener noreferrer">
+            <span class="sm-badge {badge_cls}">{badge_txt}</span>
+            <span class="sm-news-title">{title}</span>
+            <span class="sm-news-src">{n['label']}</span>
+            <span class="news-arrow">↗</span>
+          </a>"""
+
+    sm_news_html = f"""
+      <div class="sm-news-box">
+        <div class="sm-news-header">
+          <span class="sm-news-icon">🚢</span> SM그룹 해운 계열사 소식
+          <span class="sm-news-sub">최근 3일 · Google 뉴스</span>
+        </div>
+        <div class="sm-news-grid">
+          {sm_rows if sm_rows else '<div class="sm-news-empty">최근 3일간 수집된 뉴스가 없습니다</div>'}
+        </div>
+      </div>""" if sm_news else ""
 
     en_blocks = news_rows_html(en_news, show_tag=True)
 
@@ -565,7 +683,29 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .site-category{{font-size:.68rem;font-weight:600;text-transform:uppercase;
                 letter-spacing:.5px;color:#86868b;margin:.65rem 0 .3rem}}
 
-/* SM 계열사 */
+/* SM그룹 계열사 뉴스 박스 */
+.sm-news-box{{background:linear-gradient(135deg,#eef2ff 0%,#f0f7ff 100%);
+              border:1px solid #c7d2fe;border-radius:10px;
+              padding:.75rem 1rem;margin-bottom:.75rem}}
+.sm-news-header{{display:flex;align-items:center;gap:6px;font-size:.78rem;
+                 font-weight:600;color:#1e3a8a;margin-bottom:.6rem}}
+.sm-news-icon{{font-size:.9rem}}
+.sm-news-sub{{font-size:.67rem;color:#6b7280;font-weight:400;margin-left:auto}}
+.sm-news-grid{{display:grid;grid-template-columns:1fr 1fr;gap:4px;
+               max-height:220px;overflow-y:auto}}
+.sm-news-row{{display:flex;align-items:center;gap:6px;padding:.38rem .6rem;
+              border-radius:6px;background:#fff;border:1px solid #e0e7ff;
+              text-decoration:none;color:inherit;transition:border-color .12s;
+              font-size:.78rem}}
+.sm-news-row:hover{{border-color:#4f46e5;background:#f5f3ff}}
+.sm-badge{{font-size:.62rem;font-weight:700;padding:1px 5px;border-radius:3px;
+           white-space:nowrap;flex-shrink:0}}
+.sm-badge-ship{{background:#1e3a8a;color:#fff}}
+.sm-badge-group{{background:#e0e7ff;color:#3730a3}}
+.sm-news-title{{font-size:.76rem;color:#111827;flex:1;line-height:1.3}}
+.sm-news-src{{font-size:.65rem;color:#9ca3af;white-space:nowrap;flex-shrink:0}}
+.sm-news-empty{{grid-column:1/-1;text-align:center;padding:.75rem;
+                font-size:.75rem;color:#9ca3af}}
 .aff-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}}
 .aff-card{{background:#1e3a8a;border-radius:12px;padding:.65rem 1rem;
            text-decoration:none;transition:background .12s}}
@@ -651,13 +791,6 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
   <div class="sec-label">📊 해운 시황 지수</div>
   <div class="idx-grid">{idx_html}
-    <a class="idx-card" href="https://finance.naver.com/marketindex/" target="_blank">
-      <div class="idx-label">원달러환율</div>
-      <div class="idx-key">USD/KRW</div>
-      <div class="idx-val" id="usdkrw-live">—</div>
-      <div class="idx-chg neu">실시간 · 네이버금융</div>
-      <div class="idx-date">페이지 로드 시 갱신</div>
-    </a>
   </div>
 
   <div class="acc-wrap">
@@ -674,6 +807,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   </div>
 
   <div class="sec-label">📰 최신 해운 뉴스</div>
+  {sm_news_html}
   <div class="news-grid">
     {news_html}
   </div>
@@ -1012,6 +1146,9 @@ if __name__ == "__main__":
     indices, kdci_routes, kcci_routes, ncfi_routes = get_indices()
     news = get_news()
 
+    # SM뉴스: 매일 수집 (3일치 필터는 get_sm_news 내부에서 처리)
+    sm_news = get_sm_news()
+
     idx_cnt = sum(1 for v in indices.values() if v["value"] != "—")
     print(f"  지수: {idx_cnt}개 수집")
     for k, v in indices.items():
@@ -1020,8 +1157,9 @@ if __name__ == "__main__":
     ko_cnt = sum(1 for n in news if n["source"] == "구글뉴스")
     en_cnt = sum(1 for n in news if n["source"] == "해외뉴스")
     print(f"  뉴스: 국내 {ko_cnt}건 / 해외 {en_cnt}건")
+    print(f"  SM계열사 뉴스: {len(sm_news)}건")
 
-    html = build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news)
+    html = build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news)
     out  = Path(args.output) / "index.html"
     out.write_text(html, encoding="utf-8")
     print(f"  HTML 저장: {out.resolve()}")
