@@ -52,9 +52,6 @@ def get_indices():
         "NCFI":  {"value": "—", "change": "", "label": "닝보컨운임지수",
                   "date": "", "url": "https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000",
                   "note": "매주 · 한국해양진흥공사"},
-        "VLSFO": {"value": "—", "change": "", "label": "벙커유(싱가포르)",
-                  "date": "", "url": "https://shipandbunker.com/prices/apac/sea/sg-sin-singapore",
-                  "note": "매일 · Ship&Bunker ($/MT)"},
     }
     kcci_routes = []  # 노선별 세부 데이터
     kdci_routes = []
@@ -151,32 +148,6 @@ def get_indices():
                     ncfi_routes.append({"route": route, "value": cur})
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
-
-    # VLSFO — Ship & Bunker (싱가포르)
-    try:
-        r = requests.get("https://shipandbunker.com/prices/apac/sea/sg-sin-singapore",
-                         headers=HEADERS, timeout=TIMEOUT)
-        soup = BeautifulSoup(r.text, "lxml")
-        # 가격 테이블에서 VLSFO 행 파싱
-        for row in soup.select("table tr"):
-            cols = [td.get_text(strip=True) for td in row.select("td")]
-            if len(cols) >= 3 and "VLSFO" in cols[0]:
-                val = cols[1].replace("$","").replace(",","").strip()
-                chg = cols[2].strip()
-                if re.match(r"[\d.]+", val):
-                    base["VLSFO"].update({
-                        "value": f"${val}",
-                        "change": chg,
-                        "date": NOW.strftime("%Y-%m-%d")
-                    })
-                break
-        # fallback: 페이지 텍스트에서 수치 추출
-        if base["VLSFO"]["value"] == "—":
-            m = re.search(r"VLSFO[^\d]{0,10}(\d{3,4}(?:\.\d+)?)", r.text)
-            if m:
-                base["VLSFO"].update({"value": f"${m.group(1)}", "date": NOW.strftime("%Y-%m-%d")})
-    except Exception as e:
-        print(f"  [VLSFO 오류] {e}")
 
     return base, kdci_routes, kcci_routes, ncfi_routes
 
@@ -412,172 +383,183 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news):
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;
-      background:#0f1117;color:#e2e8f0;min-height:100vh;font-size:14px}}
-.wrap{{max-width:1200px;margin:0 auto;padding:1rem 1.25rem}}
+      background:#f0f4f8;color:#1a1a2e;min-height:100vh}}
+.wrap{{max-width:1100px;margin:0 auto;padding:1.5rem 1.25rem}}
 
-/* ── 헤더 ── */
+/* 헤더 */
 .header{{display:flex;justify-content:space-between;align-items:center;
-         padding:.6rem 0;margin-bottom:1rem;
-         border-bottom:1px solid #1e2535}}
-.brand{{display:flex;align-items:center;gap:8px}}
-.brand-name{{font-size:1rem;font-weight:700;color:#60a5fa;letter-spacing:.5px}}
-.brand-sub{{font-size:.72rem;color:#475569;letter-spacing:.3px}}
-.header-time{{font-size:.72rem;color:#475569;text-align:right;line-height:1.7}}
+         margin-bottom:1rem;padding-bottom:.6rem;border-bottom:2px solid #2563eb}}
+.brand{{display:flex;align-items:baseline;gap:8px}}
+.brand-name{{font-size:1.15rem;font-weight:700;color:#1e3a8a;letter-spacing:-.5px}}
+.brand-sub{{font-size:.75rem;color:#6b7280}}
+.header-time{{font-size:.78rem;color:#9ca3af;text-align:right;line-height:1.6}}
 
-/* ── 섹션 라벨 ── */
-.sec-label{{font-size:.68rem;font-weight:600;text-transform:uppercase;
-            letter-spacing:1px;color:#475569;margin-bottom:.5rem;
-            display:flex;align-items:center;gap:6px}}
-.sec-label::after{{content:'';flex:1;height:1px;background:#1e2535}}
+/* 섹션 라벨 */
+.sec-label{{font-size:.75rem;font-weight:600;text-transform:uppercase;
+            letter-spacing:.8px;color:#6b7280;margin-bottom:.5rem}}
 
-/* ── 지수 카드 (3열) ── */
-.idx-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:.6rem}}
-.idx-card{{background:#161b27;border:1px solid #1e2535;border-radius:8px;
+/* 지수 카드 (4열) */
+.idx-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:.75rem}}
+.idx-card{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
            padding:.9rem 1.1rem;text-decoration:none;color:inherit;
-           transition:border-color .15s,background .15s;display:block}}
-.idx-card:hover{{border-color:#3b82f6;background:#1a2035}}
-.idx-card.idx-unavail{{opacity:.4}}
-.idx-label{{font-size:.68rem;color:#64748b;letter-spacing:.3px;margin-bottom:2px}}
-.idx-key{{font-size:.7rem;font-weight:700;color:#94a3b8;letter-spacing:1px;margin-bottom:.4rem}}
-.idx-val{{font-size:1.6rem;font-weight:700;color:#f1f5f9;letter-spacing:-.5px;line-height:1}}
-.idx-chg{{font-size:.78rem;margin-top:.35rem;font-weight:500}}
-.idx-date{{font-size:.65rem;color:#334155;margin-top:.25rem}}
-.idx-note{{font-size:.62rem;color:#1e2535;margin-top:.1rem}}
-.up{{color:#f87171}}.dn{{color:#60a5fa}}.neu{{color:#475569}}
+           transition:border-color .15s;display:block}}
+.idx-card:hover{{border-color:#2563eb}}
+.idx-card.idx-unavail{{opacity:.45}}
+.idx-label{{font-size:.7rem;color:#9ca3af;margin-bottom:1px}}
+.idx-key{{font-size:.7rem;font-weight:700;color:#6b7280;margin-bottom:.3rem}}
+.idx-val{{font-size:1.5rem;font-weight:700;color:#111827}}
+.idx-chg{{font-size:.78rem;margin-top:.3rem}}
+.idx-date{{font-size:.68rem;color:#9ca3af;margin-top:.2rem}}
+.idx-note{{font-size:.65rem;color:#d1d5db;margin-top:.1rem}}
+.up{{color:#dc2626}}.dn{{color:#2563eb}}.neu{{color:#9ca3af}}
 
-/* ── 아코디언 (3열 드롭다운) ── */
+/* 아코디언 (3열 드롭다운) */
 .acc-wrap{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:.75rem}}
-.accordion{{background:#161b27;border:1px solid #1e2535;border-radius:8px;overflow:hidden}}
+.accordion{{background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}}
 .acc-header{{display:flex;justify-content:space-between;align-items:center;
-             padding:.5rem .75rem;border-bottom:1px solid #1e2535}}
-.acc-toggle{{background:none;border:none;cursor:pointer;font-size:.75rem;
-             font-weight:600;color:#94a3b8;font-family:inherit;padding:0;text-align:left}}
-.acc-toggle:hover{{color:#60a5fa}}
-.acc-arrow{{transition:transform .2s;color:#475569;font-size:.7rem;margin-left:3px}}
+             padding:.5rem .75rem;background:#f8faff;border-bottom:1px solid #e5e7eb}}
+.acc-toggle{{background:none;border:none;cursor:pointer;font-size:.78rem;
+             font-weight:600;color:#374151;font-family:inherit;padding:0;text-align:left}}
+.acc-toggle:hover{{color:#2563eb}}
+.acc-arrow{{transition:transform .2s;color:#9ca3af;font-size:.72rem;margin-left:3px}}
 .acc-toggle.open .acc-arrow{{transform:rotate(180deg)}}
-.acc-link-btn{{font-size:.68rem;padding:2px 7px;border:1px solid #3b82f6;
-               border-radius:4px;color:#3b82f6;text-decoration:none;white-space:nowrap}}
-.acc-link-btn:hover{{background:#3b82f6;color:#fff}}
-.acc-body{{max-height:0;overflow:hidden;transition:max-height .25s ease}}
-.acc-body.open{{max-height:220px;overflow-y:auto}}
+.acc-link-btn{{font-size:.7rem;padding:2px 8px;border:1px solid #2563eb;
+               border-radius:4px;color:#2563eb;text-decoration:none;white-space:nowrap}}
+.acc-link-btn:hover{{background:#2563eb;color:#fff}}
+.acc-body{{max-height:0;overflow:hidden;transition:max-height .3s ease}}
+.acc-body.open{{max-height:300px;overflow-y:auto}}
 .acc-rows{{display:flex;flex-direction:column}}
 .acc-row{{display:flex;justify-content:space-between;align-items:center;
-          padding:.3rem .75rem;border-bottom:1px solid #1a2035}}
+          padding:.32rem .75rem;border-bottom:1px solid #f3f4f6}}
 .acc-row:last-child{{border-bottom:none}}
-.acc-route{{font-size:.7rem;color:#64748b}}
-.acc-val{{font-size:.72rem;font-weight:600;color:#e2e8f0}}
-.acc-chg{{font-size:.68rem;font-weight:500;margin-left:5px}}
-.acc-chg.up{{color:#f87171}}.acc-chg.dn{{color:#60a5fa}}.acc-chg.neu{{color:#475569}}
+.acc-route{{font-size:.72rem;color:#6b7280}}
+.acc-val{{font-size:.75rem;font-weight:600;color:#111827}}
+.acc-chg{{font-size:.7rem;font-weight:500;margin-left:5px}}
+.acc-chg.up{{color:#dc2626}}.acc-chg.dn{{color:#2563eb}}.acc-chg.neu{{color:#9ca3af}}
 
-/* ── 지수 탭 (운임지수 / 연료·환경 / 통계) ── */
-.idx-tab-bar{{display:flex;gap:4px;margin-bottom:6px}}
-.idx-tab{{padding:4px 12px;border-radius:5px;border:1px solid #1e2535;
-          background:transparent;font-size:.72rem;font-weight:600;
-          color:#475569;cursor:pointer;font-family:inherit;transition:all .15s}}
-.idx-tab.active{{background:#1e40af;color:#fff;border-color:#1e40af}}
-.idx-tab:hover:not(.active){{border-color:#3b82f6;color:#60a5fa}}
-.idx-tab-panel{{display:none;flex-wrap:wrap;gap:6px;margin-bottom:1rem}}
+/* 지수 탭 (운임지수/연료환경/통계) */
+.idx-tab-bar{{display:flex;gap:5px;margin-bottom:7px}}
+.idx-tab{{padding:4px 13px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;
+          font-size:.75rem;font-weight:600;color:#6b7280;cursor:pointer;font-family:inherit}}
+.idx-tab.active{{background:#2563eb;color:#fff;border-color:#2563eb}}
+.idx-tab:hover:not(.active){{border-color:#2563eb;color:#2563eb}}
+.idx-tab-panel{{display:none;flex-wrap:wrap;gap:7px;margin-bottom:1.25rem}}
 .idx-tab-panel.active{{display:flex}}
-.idx-link-btn{{font-size:.7rem;padding:4px 10px;border-radius:5px;
-               border:1px solid #1e2535;background:#161b27;color:#94a3b8;
-               text-decoration:none;transition:all .15s;white-space:nowrap}}
-.idx-link-btn:hover{{border-color:#3b82f6;color:#60a5fa;background:#1a2035}}
+.idx-link-btn{{font-size:.72rem;padding:4px 10px;border-radius:5px;
+               border:1px solid #e5e7eb;background:#fff;color:#374151;
+               text-decoration:none;transition:border-color .15s;white-space:nowrap}}
+.idx-link-btn:hover{{border-color:#2563eb;color:#1e3a8a}}
 
-/* ── 뉴스 ── */
-.news-grid{{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem}}
-.news-col{{background:#161b27;border:1px solid #1e2535;border-radius:8px;overflow:hidden}}
-.news-col-header{{display:flex;align-items:center;gap:6px;padding:.55rem .9rem;
-                  border-bottom:1px solid #1e2535;
-                  font-size:.72rem;font-weight:600;color:#94a3b8;letter-spacing:.3px}}
-.news-inner{{display:flex;flex-direction:column;max-height:310px;overflow-y:auto}}
-.src-mini-header{{padding:.3rem .9rem;background:#0f1117;
-                  font-size:.65rem;color:#475569;border-bottom:1px solid #1a2035}}
+/* 뉴스 */
+.news-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem}}
+.news-col{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}}
+.news-col-header{{display:flex;align-items:center;gap:6px;padding:.65rem 1rem;
+                  background:#f8faff;border-bottom:1px solid #e5e7eb;
+                  font-size:.8rem;font-weight:600;color:#1e3a8a}}
+.news-inner{{display:flex;flex-direction:column;max-height:330px;overflow-y:auto}}
+.src-mini-header{{padding:.3rem 1rem;background:#f9fafb;
+                  font-size:.68rem;color:#9ca3af;border-bottom:1px solid #f3f4f6}}
 .news-row{{display:flex;align-items:center;justify-content:space-between;
-           padding:.45rem .9rem;border-bottom:1px solid #1a2035;
-           text-decoration:none;color:inherit;gap:6px;transition:background .12s}}
+           padding:.5rem 1rem;border-bottom:1px solid #f9fafb;
+           text-decoration:none;color:inherit;gap:8px;transition:background .12s}}
 .news-row:last-child{{border-bottom:none}}
-.news-row:hover{{background:#1a2035}}
-.news-title{{font-size:.78rem;line-height:1.4;color:#cbd5e1;flex:1}}
-.news-src-tag{{font-size:.62rem;font-weight:600;color:#f97316;background:rgba(249,115,22,.1);
-               padding:1px 4px;border-radius:3px;margin-right:4px;
+.news-row:hover{{background:#f0f5ff}}
+.news-title{{font-size:.81rem;line-height:1.45;color:#111827;flex:1}}
+.news-src-tag{{font-size:.67rem;font-weight:600;color:#e65100;background:#fff3e0;
+               padding:1px 5px;border-radius:3px;margin-right:5px;
                white-space:nowrap;flex-shrink:0}}
-.news-arrow{{font-size:.7rem;color:#334155;flex-shrink:0}}
+.news-arrow{{font-size:.8rem;color:#9ca3af;flex-shrink:0}}
 
-/* ── 사이트 탭 ── */
+/* 사이트 탭 */
 .sites-section{{margin-bottom:1rem}}
-.site-tab-bar{{display:flex;gap:4px;margin-bottom:8px;border-bottom:1px solid #1e2535;padding-bottom:6px}}
+.site-tab-bar{{display:flex;gap:4px;margin-bottom:8px;
+               border-bottom:1px solid #e5e7eb;padding-bottom:6px}}
 .site-tab{{padding:4px 14px;border-radius:5px;border:none;background:transparent;
-           font-size:.75rem;font-weight:600;color:#475569;cursor:pointer;
-           font-family:inherit;transition:all .15s}}
-.site-tab.active{{background:#1e2535;color:#e2e8f0}}
-.site-tab:hover:not(.active){{color:#94a3b8}}
+           font-size:.78rem;font-weight:600;color:#6b7280;cursor:pointer;font-family:inherit}}
+.site-tab.active{{background:#e5e7eb;color:#111827}}
+.site-tab:hover:not(.active){{color:#374151}}
 .site-panel{{display:none}}
 .site-panel.active{{display:block}}
 
 /* 주요 사이트 카드 */
 .site-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:.75rem}}
-.site-card{{background:#161b27;border:1px solid #1e2535;border-radius:7px;
+.site-card{{background:#fff;border:1px solid #e5e7eb;border-radius:7px;
             padding:.65rem .9rem;text-decoration:none;color:inherit;
             transition:border-color .15s;display:block}}
-.site-card:hover{{border-color:#3b82f6}}
-.site-card-name{{font-size:.78rem;font-weight:600;color:#cbd5e1}}
-.site-card-sub{{font-size:.65rem;color:#475569;margin-top:2px}}
-.site-category{{font-size:.65rem;font-weight:600;text-transform:uppercase;
-                letter-spacing:.5px;color:#334155;margin:.6rem 0 .3rem}}
+.site-card:hover{{border-color:#2563eb}}
+.site-card-name{{font-size:.8rem;font-weight:600;color:#111827}}
+.site-card-sub{{font-size:.68rem;color:#9ca3af;margin-top:2px}}
+.site-category{{font-size:.68rem;font-weight:600;text-transform:uppercase;
+                letter-spacing:.5px;color:#9ca3af;margin:.65rem 0 .3rem}}
 
 /* SM 계열사 */
-.aff-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}}
-.aff-card{{background:#1e3a8a;border:1px solid #1e40af;border-radius:7px;
-           padding:.55rem .8rem;text-decoration:none;transition:background .15s}}
-.aff-card:hover{{background:#1d4ed8}}
-.aff-name{{font-size:.75rem;font-weight:600;color:#dbeafe}}
-.aff-desc{{font-size:.62rem;color:#93c5fd;margin-top:1px}}
+.aff-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}}
+.aff-card{{background:#1e3a8a;border-radius:8px;padding:.6rem .9rem;
+           text-decoration:none;transition:background .15s}}
+.aff-card:hover{{background:#1a56db}}
+.aff-name{{font-size:.78rem;font-weight:600;color:#fff}}
+.aff-desc{{font-size:.68rem;color:#93c5fd;margin-top:2px}}
 
-/* 내 사이트 탭 */
-.my-site-header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}}
-.my-site-hint{{font-size:.68rem;color:#334155}}
-.my-add-btn{{font-size:.72rem;padding:4px 10px;border-radius:5px;
-             border:1px solid #1e2535;background:transparent;color:#60a5fa;
+/* 내 사이트 (지수 탭) */
+.my-idx-header{{display:flex;justify-content:space-between;align-items:center;
+                width:100%;margin-bottom:8px}}
+.my-idx-hint{{font-size:.7rem;color:#9ca3af}}
+.my-idx-grid{{display:flex;flex-wrap:wrap;gap:7px;min-height:36px;width:100%}}
+.my-idx-empty{{font-size:.75rem;color:#9ca3af;padding:.5rem 0}}
+.my-idx-card{{display:flex;align-items:center;gap:5px;font-size:.72rem;padding:4px 10px;
+              border-radius:5px;border:1px solid #e5e7eb;background:#fff;
+              color:#374151;text-decoration:none;position:relative;cursor:grab}}
+.my-idx-card:hover{{border-color:#2563eb;color:#1e3a8a}}
+.my-idx-card.dragging{{opacity:.4}}
+.my-idx-del{{font-size:.65rem;color:#9ca3af;background:none;border:none;
+             cursor:pointer;padding:0 2px;line-height:1}}
+.my-idx-del:hover{{color:#dc2626}}
+.idx-pin-btn{{font-size:.68rem;padding:2px 6px;border-radius:4px;
+              border:1px solid #e5e7eb;background:#f9fafb;color:#6b7280;
+              cursor:pointer;font-family:inherit;margin-left:-2px;
+              transition:all .15s;flex-shrink:0}}
+.idx-pin-btn:hover{{border-color:#2563eb;color:#2563eb;background:#eff6ff}}
+.idx-pin-btn.pinned{{border-color:#10b981;color:#10b981;background:#ecfdf5}}
+.my-site-hint{{font-size:.7rem;color:#9ca3af}}
+.my-add-btn{{font-size:.75rem;padding:4px 12px;border-radius:6px;
+             border:1px solid #e5e7eb;background:#fff;color:#2563eb;
              cursor:pointer;font-family:inherit}}
-.my-add-btn:hover{{background:#1e2535}}
+.my-add-btn:hover{{border-color:#2563eb}}
 .my-site-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;min-height:60px}}
-.my-site-grid.drag-over{{outline:2px dashed #3b82f6;border-radius:8px}}
-.my-card{{background:#161b27;border:1px solid #1e2535;border-radius:7px;
+.my-card{{background:#fff;border:1px solid #e5e7eb;border-radius:7px;
           padding:.65rem .9rem;text-decoration:none;color:inherit;
           position:relative;cursor:grab;transition:border-color .15s,opacity .15s}}
-.my-card:hover{{border-color:#3b82f6}}
+.my-card:hover{{border-color:#2563eb}}
 .my-card.dragging{{opacity:.4;cursor:grabbing}}
-.my-card-name{{font-size:.78rem;font-weight:600;color:#cbd5e1}}
-.my-card-sub{{font-size:.65rem;color:#475569;margin-top:2px}}
+.my-card-name{{font-size:.8rem;font-weight:600;color:#111827}}
+.my-card-sub{{font-size:.68rem;color:#9ca3af;margin-top:2px}}
 .my-del-btn{{position:absolute;top:4px;right:4px;width:16px;height:16px;
-             border-radius:50%;background:#1e2535;color:#475569;border:none;
+             border-radius:50%;background:#f3f4f6;color:#9ca3af;border:none;
              font-size:.65rem;cursor:pointer;line-height:16px;text-align:center;padding:0}}
-.my-del-btn:hover{{background:#7f1d1d;color:#fca5a5}}
+.my-del-btn:hover{{background:#fee2e2;color:#dc2626}}
 .my-empty{{grid-column:1/-1;text-align:center;padding:1.5rem;
-           font-size:.75rem;color:#334155;border:1px dashed #1e2535;border-radius:7px}}
+           font-size:.78rem;color:#9ca3af;border:1px dashed #e5e7eb;border-radius:7px}}
 
 /* 모달 */
-.modal-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+.modal-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
                 z-index:100;align-items:center;justify-content:center}}
 .modal-overlay.open{{display:flex}}
-.modal-box{{background:#161b27;border:1px solid #1e2535;border-radius:10px;
-            padding:1.25rem;width:300px;max-width:90vw}}
-.modal-title{{font-size:.88rem;font-weight:700;color:#e2e8f0;margin-bottom:.9rem}}
-.modal-input{{width:100%;padding:.5rem .75rem;border:1px solid #1e2535;
-              border-radius:6px;font-size:.8rem;margin-bottom:.5rem;
-              font-family:inherit;background:#0f1117;color:#e2e8f0}}
-.modal-input:focus{{outline:none;border-color:#3b82f6}}
-.modal-btns{{display:flex;gap:6px;margin-top:.4rem}}
-.modal-btn{{flex:1;padding:.5rem;border-radius:6px;border:none;
-            font-size:.78rem;font-weight:600;cursor:pointer}}
-.modal-btn-cancel{{background:#1e2535;color:#94a3b8}}
+.modal-box{{background:#fff;border-radius:12px;padding:1.5rem;width:300px;max-width:90vw}}
+.modal-title{{font-size:.92rem;font-weight:700;color:#111827;margin-bottom:.9rem}}
+.modal-input{{width:100%;padding:.55rem .8rem;border:1px solid #e5e7eb;border-radius:6px;
+              font-size:.82rem;margin-bottom:.55rem;font-family:inherit;background:#fff;color:#111827}}
+.modal-input:focus{{outline:none;border-color:#2563eb}}
+.modal-btns{{display:flex;gap:7px;margin-top:.4rem}}
+.modal-btn{{flex:1;padding:.52rem;border-radius:6px;border:none;
+            font-size:.8rem;font-weight:600;cursor:pointer}}
+.modal-btn-cancel{{background:#f3f4f6;color:#6b7280}}
 .modal-btn-save{{background:#2563eb;color:#fff}}
 
-.footer{{font-size:.65rem;color:#1e2535;text-align:center;
-         padding-top:.75rem;margin-top:.5rem;border-top:1px solid #1e2535}}
+.footer{{font-size:.72rem;color:#d1d5db;text-align:center;
+         padding-top:.75rem;border-top:1px solid #e5e7eb}}
 
 @media(max-width:700px){{
-  .idx-grid{{grid-template-columns:1fr 1fr}}
+  .idx-grid{{grid-template-columns:repeat(2,1fr)}}
   .acc-wrap{{grid-template-columns:1fr}}
   .news-grid{{grid-template-columns:1fr}}
   .site-grid{{grid-template-columns:repeat(2,1fr)}}
@@ -591,13 +573,13 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
   <div class="header">
     <div class="brand">
-      <span class="brand-name">⚓ WAVEDESK</span>
+      <span class="brand-name">⚓ WaveDesk</span>
       <span class="brand-sub">해운 아침 브리핑</span>
     </div>
-    <div class="header-time">{DATE_STR} &nbsp;·&nbsp; {TIME_STR} KST</div>
+    <div class="header-time">{DATE_STR}<br>업데이트 {TIME_STR} KST</div>
   </div>
 
-  <div class="sec-label">해운 시황 지수</div>
+  <div class="sec-label">📊 해운 시황 지수</div>
   <div class="idx-grid">{idx_html}
   </div>
 
@@ -606,36 +588,50 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   </div>
 
   <div class="idx-tab-bar">
-    <button class="idx-tab active" data-tab="tab-idx">운임지수</button>
+    <button class="idx-tab active" data-tab="tab-my">내 사이트</button>
+    <button class="idx-tab" data-tab="tab-idx">운임지수</button>
     <button class="idx-tab" data-tab="tab-env">연료·환경</button>
     <button class="idx-tab" data-tab="tab-stat">통계·보고서</button>
   </div>
-  <div class="idx-tab-panel active" id="tab-idx">
-    <a class="idx-link-btn" href="https://surff.kr/indices" target="_blank">SCFI·KCCI·CCFI — surff.kr</a>
-    <a class="idx-link-btn" href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">SCFI·CCFI·BDI — 국가물류통합정보센터</a>
-    <a class="idx-link-btn" href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">BDI·BCI·BPI — 쉬핑뉴스넷</a>
-    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">KCCI — 한국해양진흥공사</a>
-    <a class="idx-link-btn" href="https://www.balticexchange.com/en/index.html" target="_blank">Baltic Exchange</a>
-    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">SCFI — 상하이해운거래소</a>
-    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">CCFI — 상하이해운거래소</a>
-    <a class="idx-link-btn" href="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/" target="_blank">Freightos FBX</a>
-    <a class="idx-link-btn" href="https://www.tradlinx.com/ko/freight-index" target="_blank">TradLinx 종합 차트</a>
-    <a class="idx-link-btn" href="https://www.spotmarketcap.com/shipping" target="_blank">탱커 TCE·Worldscale</a>
+
+  <div class="idx-tab-panel active" id="tab-my">
+    <div class="my-idx-header">
+      <span class="my-idx-hint">다른 탭의 + 버튼으로 추가 · 드래그로 순서 변경 · 이 브라우저에만 저장</span>
+      <button class="my-add-btn" id="addIdxBtn">+ 직접 추가</button>
+    </div>
+    <div class="my-idx-grid" id="myIdxGrid">
+      <div class="my-idx-empty" id="myIdxEmpty">다른 탭에서 + 버튼을 눌러 추가하거나, 직접 추가하세요</div>
+    </div>
   </div>
+
+  <div class="idx-tab-panel" id="tab-idx">
+    <a class="idx-link-btn" href="https://surff.kr/indices" target="_blank">SCFI·KCCI·CCFI — surff.kr</a><button class="idx-pin-btn" data-name="SCFI·KCCI·CCFI — surff.kr" data-url="https://surff.kr/indices">+</button>
+    <a class="idx-link-btn" href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">SCFI·CCFI·BDI — 국가물류통합정보센터</a><button class="idx-pin-btn" data-name="SCFI·CCFI·BDI — 국가물류통합정보센터" data-url="https://nlic.go.kr/nlic/ocnStatisticBoard.action">+</button>
+    <a class="idx-link-btn" href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">BDI·BCI·BPI — 쉬핑뉴스넷</a><button class="idx-pin-btn" data-name="BDI·BCI·BPI — 쉬핑뉴스넷" data-url="https://www.shippingnewsnet.com/sdata/page.html?term=1">+</button>
+    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">KCCI — 한국해양진흥공사</a><button class="idx-pin-btn" data-name="KCCI — 한국해양진흥공사" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000">+</button>
+    <a class="idx-link-btn" href="https://www.balticexchange.com/en/index.html" target="_blank">Baltic Exchange</a><button class="idx-pin-btn" data-name="Baltic Exchange" data-url="https://www.balticexchange.com/en/index.html">+</button>
+    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">SCFI — 상하이해운거래소</a><button class="idx-pin-btn" data-name="SCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/scfinew.jsp">+</button>
+    <a class="idx-link-btn" href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">CCFI — 상하이해운거래소</a><button class="idx-pin-btn" data-name="CCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/ccfinew.jsp">+</button>
+    <a class="idx-link-btn" href="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/" target="_blank">Freightos FBX</a><button class="idx-pin-btn" data-name="Freightos FBX" data-url="https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/">+</button>
+    <a class="idx-link-btn" href="https://www.tradlinx.com/ko/freight-index" target="_blank">TradLinx 종합 차트</a><button class="idx-pin-btn" data-name="TradLinx 종합 차트" data-url="https://www.tradlinx.com/ko/freight-index">+</button>
+    <a class="idx-link-btn" href="https://www.spotmarketcap.com/shipping" target="_blank">탱커 TCE·Worldscale</a><button class="idx-pin-btn" data-name="탱커 TCE·Worldscale" data-url="https://www.spotmarketcap.com/shipping">+</button>
+  </div>
+
   <div class="idx-tab-panel" id="tab-env">
-    <a class="idx-link-btn" href="https://shipandbunker.com/prices" target="_blank">⛽ 글로벌 벙커유 — Ship&Bunker</a>
-    <a class="idx-link-btn" href="https://shipandbunker.com/prices/ea/eu/eu-eua" target="_blank">💶 EU-ETS 탄소배출권</a>
-    <a class="idx-link-btn" href="https://lngprime.com/" target="_blank">🔥 LNG 스팟 — LNG Prime</a>
-    <a class="idx-link-btn" href="https://kr.investing.com/commodities/carbon-emissions-historical-data" target="_blank">📉 EUA 과거 가격</a>
-    <a class="idx-link-btn" href="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures" target="_blank">🌊 JKM LNG 스팟</a>
-    <a class="idx-link-btn" href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가</a>
+    <a class="idx-link-btn" href="https://shipandbunker.com/prices" target="_blank">⛽ 글로벌 벙커유 — Ship&Bunker</a><button class="idx-pin-btn" data-name="글로벌 벙커유 — Ship&Bunker" data-url="https://shipandbunker.com/prices">+</button>
+    <a class="idx-link-btn" href="https://shipandbunker.com/prices/ea/eu/eu-eua" target="_blank">💶 EU-ETS 탄소배출권</a><button class="idx-pin-btn" data-name="EU-ETS 탄소배출권" data-url="https://shipandbunker.com/prices/ea/eu/eu-eua">+</button>
+    <a class="idx-link-btn" href="https://lngprime.com/" target="_blank">🔥 LNG 스팟 — LNG Prime</a><button class="idx-pin-btn" data-name="LNG 스팟 — LNG Prime" data-url="https://lngprime.com/">+</button>
+    <a class="idx-link-btn" href="https://kr.investing.com/commodities/carbon-emissions-historical-data" target="_blank">📉 EUA 과거 가격</a><button class="idx-pin-btn" data-name="EUA 과거 가격" data-url="https://kr.investing.com/commodities/carbon-emissions-historical-data">+</button>
+    <a class="idx-link-btn" href="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures" target="_blank">🌊 JKM LNG 스팟</a><button class="idx-pin-btn" data-name="JKM LNG 스팟" data-url="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures">+</button>
+    <a class="idx-link-btn" href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가</a><button class="idx-pin-btn" data-name="벌크선 운영비·신조가 — Baltic" data-url="https://www.balticexchange.com/en/data-services/market-information0/indices.html">+</button>
   </div>
+
   <div class="idx-tab-panel" id="tab-stat">
-    <a class="idx-link-btn" href="https://nlic.go.kr/nlic/seaStatisticBoard.action" target="_blank">🚢 해상 운송 통계</a>
-    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000" target="_blank">📄 KOBC 일간 건화물선 보고서</a>
-    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000" target="_blank">📄 KOBC 주간통합 보고서</a>
-    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊 KDCI 세부지수</a>
-    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a>
+    <a class="idx-link-btn" href="https://nlic.go.kr/nlic/seaStatisticBoard.action" target="_blank">🚢 해상 운송 통계</a><button class="idx-pin-btn" data-name="해상 운송 통계" data-url="https://nlic.go.kr/nlic/seaStatisticBoard.action">+</button>
+    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000" target="_blank">📄 KOBC 일간 건화물선 보고서</a><button class="idx-pin-btn" data-name="KOBC 일간 건화물선 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000">+</button>
+    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000" target="_blank">📄 KOBC 주간통합 보고서</a><button class="idx-pin-btn" data-name="KOBC 주간통합 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000">+</button>
+    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊 KDCI 세부지수</a><button class="idx-pin-btn" data-name="KDCI 세부지수" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000">+</button>
+    <a class="idx-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a><button class="idx-pin-btn" data-name="NCFI 닝보 노선별" data-url="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000">+</button>
   </div>
 
   <div class="sec-label">최신 해운 뉴스</div>
@@ -644,7 +640,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   </div>
 
   <div class="sites-section">
-    <div class="sec-label">사이트</div>
+    <div class="sec-label">🔗 사이트</div>
     <div class="site-tab-bar">
       <button class="site-tab active" data-stab="stab-my">내 사이트</button>
       <button class="site-tab" data-stab="stab-main">주요 사이트</button>
@@ -653,8 +649,8 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
     <div class="site-panel active" id="stab-my">
       <div class="my-site-header">
-        <span class="my-site-hint">드래그로 순서 변경 · 내 브라우저에만 저장</span>
-        <button class="my-add-btn" id="addLinkBtn">+ 사이트 추가</button>
+        <span class="my-site-hint">드래그로 순서 변경 · 삭제 · 내 브라우저에만 저장</span>
+        <button class="my-add-btn" id="addSiteBtn">+ 사이트 추가</button>
       </div>
       <div class="my-site-grid" id="mySiteGrid">
         <div class="my-empty" id="myEmpty">사이트를 추가해보세요</div>
@@ -732,7 +728,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 <script>
 (function() {{
-  // ── 지수 탭
+  // ── 지수 탭 전환
   document.querySelectorAll('.idx-tab').forEach(t => {{
     t.addEventListener('click', () => {{
       document.querySelectorAll('.idx-tab').forEach(x => x.classList.remove('active'));
@@ -742,16 +738,24 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     }});
   }});
 
-  // ── 아코디언
+  // ── 아코디언 (하나 열면 전부 열림)
   document.querySelectorAll('.acc-toggle').forEach(btn => {{
     btn.addEventListener('click', () => {{
+      const allBodies = document.querySelectorAll('.acc-body');
+      const allBtns = document.querySelectorAll('.acc-toggle');
       const body = document.getElementById(btn.dataset.target);
-      const isOpen = body.classList.toggle('open');
-      btn.classList.toggle('open', isOpen);
+      const isOpen = body.classList.contains('open');
+      if (isOpen) {{
+        allBodies.forEach(b => b.classList.remove('open'));
+        allBtns.forEach(b => b.classList.remove('open'));
+      }} else {{
+        allBodies.forEach(b => b.classList.add('open'));
+        allBtns.forEach(b => b.classList.add('open'));
+      }}
     }});
   }});
 
-  // ── 사이트 탭
+  // ── 사이트 탭 전환
   document.querySelectorAll('.site-tab').forEach(t => {{
     t.addEventListener('click', () => {{
       document.querySelectorAll('.site-tab').forEach(x => x.classList.remove('active'));
@@ -761,77 +765,155 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     }});
   }});
 
-  // ── 내 사이트 (localStorage + drag & drop)
-  const STORAGE_KEY = 'wavedesk_my_sites_v2';
-  const grid = document.getElementById('mySiteGrid');
-  const empty = document.getElementById('myEmpty');
+  // ── 내 사이트 (지수 탭) — localStorage + drag
+  const IDX_KEY = 'wavedesk_my_idx_v1';
+  const idxGrid = document.getElementById('myIdxGrid');
+  const idxEmpty = document.getElementById('myIdxEmpty');
+
+  function getIdxLinks() {{
+    try {{ return JSON.parse(localStorage.getItem(IDX_KEY)) || []; }}
+    catch(e) {{ return []; }}
+  }}
+  function saveIdxLinks(links) {{ localStorage.setItem(IDX_KEY, JSON.stringify(links)); }}
+
+  function updatePinBtns() {{
+    const links = getIdxLinks();
+    const urls = new Set(links.map(l => l.url));
+    document.querySelectorAll('.idx-pin-btn').forEach(btn => {{
+      if (urls.has(btn.dataset.url)) {{
+        btn.classList.add('pinned'); btn.textContent = '✓';
+      }} else {{
+        btn.classList.remove('pinned'); btn.textContent = '+';
+      }}
+    }});
+  }}
+
+  let idxDragSrc = null;
+  function renderIdx() {{
+    const links = getIdxLinks();
+    idxGrid.querySelectorAll('.my-idx-card').forEach(c => c.remove());
+    idxEmpty.style.display = links.length ? 'none' : 'block';
+    links.forEach((l, i) => {{
+      const div = document.createElement('div');
+      div.className = 'my-idx-card'; div.draggable = true; div.dataset.idx = i;
+      div.innerHTML = `<a href="${{l.url}}" target="_blank" style="color:inherit;text-decoration:none">${{l.name}}</a>
+        <button class="my-idx-del" title="삭제">×</button>`;
+      div.querySelector('.my-idx-del').onclick = (e) => {{
+        e.stopPropagation();
+        const updated = getIdxLinks(); updated.splice(i, 1); saveIdxLinks(updated);
+        renderIdx(); updatePinBtns();
+      }};
+      div.addEventListener('dragstart', e => {{
+        idxDragSrc = i; div.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      }});
+      div.addEventListener('dragend', () => div.classList.remove('dragging'));
+      div.addEventListener('dragover', e => {{ e.preventDefault(); }});
+      div.addEventListener('drop', e => {{
+        e.preventDefault();
+        if (idxDragSrc === null || idxDragSrc === i) return;
+        const updated = getIdxLinks();
+        const [moved] = updated.splice(idxDragSrc, 1);
+        updated.splice(i, 0, moved);
+        saveIdxLinks(updated); idxDragSrc = null; renderIdx();
+      }});
+      idxGrid.appendChild(div);
+    }});
+    updatePinBtns();
+  }}
+
+  // + 버튼으로 내 사이트에 추가
+  document.querySelectorAll('.idx-pin-btn').forEach(btn => {{
+    btn.addEventListener('click', () => {{
+      const links = getIdxLinks();
+      const url = btn.dataset.url;
+      const name = btn.dataset.name;
+      if (links.find(l => l.url === url)) {{
+        // 이미 있으면 제거
+        const idx = links.findIndex(l => l.url === url);
+        links.splice(idx, 1);
+      }} else {{
+        links.push({{name, url}});
+      }}
+      saveIdxLinks(links); renderIdx();
+    }});
+  }});
+
+  // 직접 추가 버튼
+  const addIdxBtn = document.getElementById('addIdxBtn');
   const modal = document.getElementById('addLinkModal');
-  const addBtn = document.getElementById('addLinkBtn');
   const cancelBtn = document.getElementById('cancelLinkBtn');
   const saveBtn = document.getElementById('saveLinkBtn');
   const nameInput = document.getElementById('newLinkName');
   const urlInput = document.getElementById('newLinkUrl');
 
-  function getLinks() {{
-    try {{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }}
-    catch(e) {{ return []; }}
-  }}
-  function saveLinks(links) {{ localStorage.setItem(STORAGE_KEY, JSON.stringify(links)); }}
-
-  let dragSrc = null;
-
-  function render() {{
-    const links = getLinks();
-    const cards = grid.querySelectorAll('.my-card');
-    cards.forEach(c => c.remove());
-    empty.style.display = links.length ? 'none' : 'block';
-    links.forEach((l, i) => {{
-      const a = document.createElement('a');
-      a.className = 'my-card';
-      a.href = l.url; a.target = '_blank';
-      a.draggable = true;
-      a.dataset.idx = i;
-      a.innerHTML = `<div class="my-card-name">${{l.name}}</div>
-        <div class="my-card-sub">내 사이트</div>
-        <button class="my-del-btn" title="삭제">×</button>`;
-      a.querySelector('.my-del-btn').onclick = (e) => {{
-        e.preventDefault(); e.stopPropagation();
-        const updated = getLinks(); updated.splice(i, 1); saveLinks(updated); render();
-      }};
-      a.addEventListener('dragstart', e => {{
-        dragSrc = i; a.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-      }});
-      a.addEventListener('dragend', () => a.classList.remove('dragging'));
-      a.addEventListener('dragover', e => {{ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }});
-      a.addEventListener('drop', e => {{
-        e.preventDefault();
-        if (dragSrc === null || dragSrc === i) return;
-        const updated = getLinks();
-        const [moved] = updated.splice(dragSrc, 1);
-        updated.splice(i, 0, moved);
-        saveLinks(updated); dragSrc = null; render();
-      }});
-      grid.appendChild(a);
-    }});
-  }}
-
-  addBtn.onclick = () => {{ modal.classList.add('open'); nameInput.focus(); }};
-  cancelBtn.onclick = () => {{
+  if (addIdxBtn) addIdxBtn.onclick = () => {{ modal.classList.add('open'); nameInput.focus(); }};
+  if (cancelBtn) cancelBtn.onclick = () => {{
     modal.classList.remove('open'); nameInput.value = ''; urlInput.value = '';
   }};
-  saveBtn.onclick = () => {{
+  if (saveBtn) saveBtn.onclick = () => {{
     let name = nameInput.value.trim();
     let url = urlInput.value.trim();
     if (!url) return;
     if (!/^https?:\\/\\//.test(url)) url = 'https://' + url;
     if (!name) name = url.replace(/^https?:\\/\\//, '').split('/')[0];
-    const links = getLinks(); links.push({{name, url}});
-    saveLinks(links); nameInput.value = ''; urlInput.value = '';
-    modal.classList.remove('open'); render();
+    const links = getIdxLinks(); links.push({{name, url}});
+    saveIdxLinks(links); nameInput.value = ''; urlInput.value = '';
+    modal.classList.remove('open'); renderIdx();
   }};
-  modal.onclick = e => {{ if (e.target === modal) cancelBtn.onclick(); }};
-  render();
+  if (modal) modal.onclick = e => {{ if (e.target === modal && cancelBtn) cancelBtn.onclick(); }};
+
+  // ── 하단 내 사이트 (사이트 탭) — 기존 기능 유지
+  const SITE_KEY = 'wavedesk_my_sites_v2';
+  const siteGrid = document.getElementById('mySiteGrid');
+
+  function getSiteLinks() {{
+    try {{ return JSON.parse(localStorage.getItem(SITE_KEY)) || []; }}
+    catch(e) {{ return []; }}
+  }}
+  function saveSiteLinks(links) {{ localStorage.setItem(SITE_KEY, JSON.stringify(links)); }}
+
+  let siteDragSrc = null;
+  function renderSite() {{
+    if (!siteGrid) return;
+    siteGrid.querySelectorAll('.my-card').forEach(c => c.remove());
+    const empty = document.getElementById('myEmpty');
+    const links = getSiteLinks();
+    if (empty) empty.style.display = links.length ? 'none' : 'block';
+    links.forEach((l, i) => {{
+      const a = document.createElement('a');
+      a.className = 'my-card'; a.href = l.url; a.target = '_blank';
+      a.draggable = true; a.dataset.idx = i;
+      a.innerHTML = `<div class="my-card-name">${{l.name}}</div>
+        <div class="my-card-sub">내 사이트</div>
+        <button class="my-del-btn" title="삭제">×</button>`;
+      a.querySelector('.my-del-btn').onclick = (e) => {{
+        e.preventDefault(); e.stopPropagation();
+        const updated = getSiteLinks(); updated.splice(i, 1); saveSiteLinks(updated); renderSite();
+      }};
+      a.addEventListener('dragstart', e => {{
+        siteDragSrc = i; a.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      }});
+      a.addEventListener('dragend', () => a.classList.remove('dragging'));
+      a.addEventListener('dragover', e => {{ e.preventDefault(); }});
+      a.addEventListener('drop', e => {{
+        e.preventDefault();
+        if (siteDragSrc === null || siteDragSrc === i) return;
+        const updated = getSiteLinks();
+        const [moved] = updated.splice(siteDragSrc, 1);
+        updated.splice(i, 0, moved);
+        saveSiteLinks(updated); siteDragSrc = null; renderSite();
+      }});
+      siteGrid.appendChild(a);
+    }});
+  }}
+
+  const addSiteBtn = document.getElementById('addSiteBtn');
+  if (addSiteBtn) addSiteBtn.onclick = () => {{ modal.classList.add('open'); nameInput.focus(); }};
+
+  renderIdx();
+  renderSite();
 }})();
 </script>
 </body>
