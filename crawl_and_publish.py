@@ -125,34 +125,40 @@ def get_indices():
         soup = BeautifulSoup(r.text, "lxml")
         for row in soup.select("table tr"):
             cols = [td.get_text(strip=True) for td in row.select("td")]
-            if len(cols) >= 6:
-                code = cols[1]; route = cols[2]; cur = cols[4]
-                prev = cols[5] if len(cols) > 5 else ""
-                wk   = cols[6] if len(cols) > 6 else ""
-                if code == "KCCI":
-                    chg = ""
-                    # "173(4.62%)" 또는 "-173(-4.62%)" 패턴
-                    m = re.search(r"\(([\+\-]?[\d.]+%)\)", wk)
-                    if m:
-                        pct = m.group(1)
-                        # 부호 없으면 prev vs cur로 방향 판단
-                        try:
-                            sign = "+" if float(cur.replace(",","")) >= float(prev.replace(",","")) else "-"
-                            chg = pct if pct.startswith(("+","-")) else sign + pct
-                        except Exception:
-                            chg = pct
-                    base["KCCI"].update({"value": cur, "change": chg, "date": NOW.strftime("%Y-%m-%d")})
-                elif code and re.match(r"^[A-Z]{3,5}$", code) and cur:
-                    route_chg = ""
-                    m2 = re.search(r"\(([\+\-]?[\d.]+%)\)", wk)
-                    if m2:
-                        pct = m2.group(1)
-                        try:
-                            sign = "+" if float(cur.replace(",","")) >= float(prev.replace(",","")) else "-"
-                            route_chg = pct if pct.startswith(("+","-")) else sign + pct
-                        except Exception:
-                            route_chg = pct
-                    kcci_routes.append({"route": f"{route} ({code})", "value": cur, "change": route_chg})
+            n = len(cols)
+            if n < 5:
+                continue
+            # 7컬럼(Group포함): Group(0) Code(1) Route(2) Weight(3) Cur(4) Prev(5) WkChg(6)
+            # 6컬럼(Group없음):         Code(0) Route(1) Weight(2) Cur(3) Prev(4) WkChg(5)
+            # 5컬럼(Group+Code없음):           Route(0) Weight(1) Cur(2) Prev(3) WkChg(4)
+            if n >= 7:
+                code, route, cur, prev, wk = cols[1], cols[2], cols[4], cols[5], cols[6]
+            elif n == 6:
+                code, route, cur, prev, wk = cols[0], cols[1], cols[3], cols[4], cols[5]
+            elif n == 5:
+                code, route, cur, prev, wk = "", cols[0], cols[2], cols[3], cols[4]
+            else:
+                continue
+
+            def parse_chg(wk_str, cur_str, prev_str):
+                m = re.search(r"\(([\+\-]?[\d.]+%)\)", wk_str)
+                if not m:
+                    return ""
+                pct = m.group(1)
+                if pct.startswith(("+","-")):
+                    return pct
+                try:
+                    sign = "+" if float(cur_str.replace(",","")) >= float(prev_str.replace(",","")) else "-"
+                    return sign + pct
+                except Exception:
+                    return pct
+
+            if code == "KCCI":
+                chg = parse_chg(wk, cur, prev)
+                base["KCCI"].update({"value": cur, "change": chg, "date": NOW.strftime("%Y-%m-%d")})
+            elif code and re.match(r"^[A-Z]{3,5}$", code) and cur and re.search(r"\d", cur):
+                route_chg = parse_chg(wk, cur, prev)
+                kcci_routes.append({"route": f"{route} ({code})", "value": cur, "change": route_chg})
     except Exception as e:
         print(f"  [KCCI 오류] {e}")
 
@@ -537,16 +543,16 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .my-site-grid.drag-active{{border-color:#0071e3;background:#f0f6ff}}
 .my-empty{{font-size:.73rem;color:#86868b;align-self:center;padding:.25rem 0}}
 .my-site-item{{display:inline-flex;align-items:center;gap:5px;
-               font-size:.78rem;padding:5px 11px;border-radius:980px;
-               border:1px solid #0071e3;background:#fff;color:#0071e3;
+               font-size:.78rem;padding:5px 12px;border-radius:7px;
+               border:none;background:#0071e3;color:#fff;
                cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Noto Sans KR',sans-serif;
                line-height:1.4;text-decoration:none;
-               transition:background .12s,color .12s}}
-.my-site-item:hover{{background:#0071e3;color:#fff}}
+               transition:background .12s}}
+.my-site-item:hover{{background:#0077ed}}
 .my-site-item a{{color:inherit;text-decoration:none;pointer-events:all}}
-.my-del-btn{{font-size:.65rem;color:inherit;background:none;border:none;
-             cursor:pointer;padding:0;line-height:1;pointer-events:all;opacity:.6}}
-.my-del-btn:hover{{opacity:1}}
+.my-del-btn{{font-size:.65rem;color:rgba(255,255,255,.7);background:none;border:none;
+             cursor:pointer;padding:0;line-height:1;pointer-events:all}}
+.my-del-btn:hover{{color:#fff}}
 
 /* 주요 사이트 카드 */
 .site-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:.75rem}}
@@ -561,11 +567,11 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 /* SM 계열사 */
 .aff-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}}
-.aff-card{{background:#1d1d1f;border-radius:12px;padding:.65rem 1rem;
+.aff-card{{background:#1e3a8a;border-radius:12px;padding:.65rem 1rem;
            text-decoration:none;transition:background .12s}}
-.aff-card:hover{{background:#2d2d2f}}
-.aff-name{{font-size:.8rem;font-weight:500;color:#f5f5f7}}
-.aff-desc{{font-size:.68rem;color:#86868b;margin-top:2px}}
+.aff-card:hover{{background:#1a56db}}
+.aff-name{{font-size:.8rem;font-weight:500;color:#fff}}
+.aff-desc{{font-size:.68rem;color:#93c5fd;margin-top:2px}}
 
 /* 직접 추가 버튼 */
 .direct-add-btn{{display:inline-flex;align-items:center;gap:5px;
@@ -677,7 +683,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <div class="site-link-item draggable" draggable="true" data-name="NCFI 닝보 노선별" data-url="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
     </div>
 
-    <!-- 주요 해운 사이트 -->
+    <!-- 주요 해운 사이트 - 국내/해외 신문만 -->
     <div class="site-group-label">📰 주요 해운 사이트</div>
     <div class="site-grid">
       <a class="site-card" href="https://www.ksg.co.kr/news/main_news.jsp" target="_blank">
@@ -688,14 +694,16 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
         <div class="site-card-name">한국해운신문</div><div class="site-card-sub">해운·조선·항만물류</div></a>
       <a class="site-card" href="https://www.klnews.co.kr/" target="_blank">
         <div class="site-card-name">물류신문</div><div class="site-card-sub">물류 전문 매체</div></a>
-      <a class="site-card" href="https://www.kobc.or.kr/ebz/shippinginfo/main.do" target="_blank">
-        <div class="site-card-name">한국해양진흥공사</div><div class="site-card-sub">KCCI · 해운시황 보고서</div></a>
-      <a class="site-card" href="https://www.nlic.go.kr/nlic/transInPortCt.action" target="_blank">
-        <div class="site-card-name">국가물류통합정보센터</div><div class="site-card-sub">SCFI · CCFI · BDI</div></a>
-      <a class="site-card" href="https://surff.kr/indices" target="_blank">
-        <div class="site-card-name">surff.kr</div><div class="site-card-sub">운임지수 차트</div></a>
       <a class="site-card" href="https://maritime-executive.com/" target="_blank">
         <div class="site-card-name">Maritime Executive</div><div class="site-card-sub">해외 해운 전문 (영문)</div></a>
+      <a class="site-card" href="https://splash247.com/" target="_blank">
+        <div class="site-card-name">Splash247</div><div class="site-card-sub">해외 해운 뉴스 (영문)</div></a>
+    </div>
+
+    <!-- 직접 추가 버튼 - 주요 사이트와 SM 계열사 사이 -->
+    <div style="margin:.75rem 0;padding:.65rem 0;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:10px">
+      <button class="direct-add-btn" id="addSiteBtn">＋ 내 사이트에 직접 추가</button>
+      <span style="font-size:.67rem;color:#86868b">URL을 직접 입력해서 내 사이트에 추가하세요</span>
     </div>
 
     <!-- SM 계열사 -->
@@ -719,11 +727,6 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
         <div class="aff-name">SM상선 김포터미널</div><div class="aff-desc">항만 · 내륙물류</div></a>
       <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
         <div class="aff-name">SM그룹 (해운부문)</div><div class="aff-desc">그룹 공식 홈페이지</div></a>
-    </div>
-
-    <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid #f3f4f6">
-      <button class="direct-add-btn" id="addSiteBtn">＋ 내 사이트에 직접 추가</button>
-      <span style="font-size:.67rem;color:#86868b;margin-left:8px">URL을 직접 입력해서 추가하세요</span>
     </div>
   </div>
 
