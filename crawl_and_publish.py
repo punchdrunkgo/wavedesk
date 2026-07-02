@@ -193,7 +193,8 @@ def get_indices():
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
 
-    # USD/KRW 환율 — 네이버 금융 직접 파싱
+    # USD/KRW 환율 — 네이버 금융 + open.er-api.com fallback
+    krw_val, krw_chg = None, ""
     try:
         r = requests.get(
             "https://finance.naver.com/marketindex/",
@@ -202,9 +203,7 @@ def get_indices():
             timeout=10)
         r.encoding = "utf-8"
         soup2 = BeautifulSoup(r.text, "lxml")
-        krw_val, krw_chg = None, ""
 
-        # 방법1: 리스트 셀렉터
         for sel in ["#exchangeList li", ".lst_exchange li",
                     ".market1 tbody tr", ".tbl_exchange tbody tr"]:
             for row in soup2.select(sel):
@@ -215,7 +214,7 @@ def get_indices():
                         nums = re.findall(r"[\d,]{4,}", txt)
                     if nums:
                         candidate = float(nums[0].replace(",",""))
-                        if 900 < candidate < 2000:  # 유효 환율 범위
+                        if 900 < candidate < 2000:
                             krw_val = str(round(candidate))
                     diffs = re.findall(r"([\+\-][\d,]+\.?\d*)", txt)
                     if diffs and krw_val:
@@ -226,34 +225,47 @@ def get_indices():
             if krw_val:
                 break
 
-        # 방법2: 페이지 전체에서 환율 패턴 정규식
         if not krw_val:
             m = re.search(r"USD[^\d]{0,20}(1[,.]?\d{3}\.?\d*)", r.text)
-            if not m:
-                m = re.search(r"(1[,\d]{3}\.?\d*)[^\d]{0,5}원", r.text)
             if m:
                 candidate = float(m.group(1).replace(",",""))
                 if 900 < candidate < 2000:
                     krw_val = str(round(candidate))
-
-        base["USD/KRW"] = {
-            "value": f"{int(krw_val):,}" if krw_val else "—",
-            "change": krw_chg,
-            "label": "원달러환율",
-            "date": NOW.strftime("%Y-%m-%d"),
-            "url": "https://finance.naver.com/marketindex/",
-            "note": "매일 · 네이버금융"
-        }
-        if not krw_val:
-            print("  [환율 경고] 파싱은 됐으나 수치 추출 실패")
     except Exception as e:
-        print(f"  [환율 오류] {e}")
-        base["USD/KRW"] = {
-            "value": "—", "change": "", "label": "원달러환율",
-            "date": NOW.strftime("%Y-%m-%d"),
-            "url": "https://finance.naver.com/marketindex/",
-            "note": "매일 · 네이버금융"
-        }
+        print(f"  [환율 네이버 오류] {e}")
+
+    # fallback: open.er-api.com (오늘+어제 비교)
+    if not krw_val:
+        try:
+            r2 = requests.get("https://open.er-api.com/v6/latest/USD",
+                              headers=HEADERS, timeout=8)
+            d2 = r2.json()
+            today_krw = d2.get("rates", {}).get("KRW", 0)
+            if today_krw:
+                krw_val = str(round(today_krw))
+                # 어제 환율
+                r3 = requests.get(
+                    f"https://open.er-api.com/v6/history/USD/{(NOW-timedelta(days=1)).strftime('%Y/%m/%d')}",
+                    headers=HEADERS, timeout=8)
+                d3 = r3.json()
+                prev_krw = d3.get("rates", {}).get("KRW", today_krw)
+                if prev_krw:
+                    diff = today_krw - prev_krw
+                    pct = round(diff / prev_krw * 100, 2)
+                    krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
+        except Exception as e2:
+            print(f"  [환율 fallback 오류] {e2}")
+
+    base["USD/KRW"] = {
+        "value": f"{int(krw_val):,}" if krw_val else "—",
+        "change": krw_chg,
+        "label": "원달러환율",
+        "date": NOW.strftime("%Y-%m-%d"),
+        "url": "https://finance.naver.com/marketindex/",
+        "note": "매일 · 네이버금융"
+    }
+    if not krw_val:
+        print("  [환율 경고] 모든 소스 실패")
 
     return base, kdci_routes, kcci_routes, ncfi_routes
 
@@ -453,13 +465,26 @@ def get_sm_news():
 
     # 중복 제거: 제목 앞 20자로 유사 기사 판별 (검색어별로 같은 기사가 중복 유입)
     def title_key(t):
-        # 괄호/특수문자 제거 후 앞 20자
-        return re.sub(r"[^\w]", "", t)[:20]
+        # 특수문자·공백 제거 후 앞 15자 (더 짧게 잘라 유사 기사 더 잘 잡음)
+        return re.sub(r"[^\w]", "", t)[:15]
+
+    def title_words(t):
+        # 2글자 이상 단어 집합 추출 (핵심 명사 겹침 비교용)
+        return set(w for w in re.sub(r"[^\w\s]","",t).split() if len(w) >= 2)
 
     seen_keys, result = set(), []
     for n in items:
         k = title_key(n["title"])
-        if k not in seen_keys:
+        words = title_words(n["title"])
+        # 이미 추가된 기사들과 핵심 단어 3개 이상 겹치면 중복으로 판단
+        is_dup = False
+        for existing in result:
+            existing_words = title_words(existing["title"])
+            overlap = len(words & existing_words)
+            if overlap >= 3 or k in seen_keys:
+                is_dup = True
+                break
+        if not is_dup:
             seen_keys.add(k)
             result.append(n)
 
@@ -565,17 +590,18 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news):
 
     # 세부 노선 아코디언 (KDCI/KCCI/NCFI)
     def accordion_html(aid, title, routes, unit, src_url):
-        if not routes:
-            return ""
         rows = ""
-        for r in routes:
-            chg = r.get("change","")
-            cls, arrow = dir_cls(chg)
-            chg_html = f'<span class="acc-chg {cls}">{arrow} {chg}</span>' if chg else ""
-            rows += (f'<div class="acc-row">'
-                     f'<span class="acc-route">{r["route"]}</span>'
-                     f'<span class="acc-val">{r["value"]}{unit}{chg_html}</span>'
-                     f'</div>')
+        if not routes:
+            rows = '<div class="acc-row"><span class="acc-route" style="color:#9ca3af">데이터 없음 (주간 발표일 확인)</span></div>'
+        else:
+            for r in routes:
+                chg = r.get("change","")
+                cls, arrow = dir_cls(chg)
+                chg_html = f'<span class="acc-chg {cls}">{arrow} {chg}</span>' if chg else ""
+                rows += (f'<div class="acc-row">'
+                         f'<span class="acc-route">{r["route"]}</span>'
+                         f'<span class="acc-val">{r["value"]}{unit}{chg_html}</span>'
+                         f'</div>')
         return f"""<div class="accordion">
         <div class="acc-header">
           <button class="acc-toggle" data-target="{aid}">
@@ -681,16 +707,15 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 /* 오늘의 단어 박스 */
 .word-box{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
-           padding:.6rem .9rem;max-width:520px;text-align:right}}
-.word-header{{font-size:.65rem;font-weight:600;color:#9ca3af;
-              text-transform:uppercase;letter-spacing:.5px;margin-bottom:.25rem}}
-.word-main{{display:flex;align-items:baseline;gap:6px;justify-content:flex-end;
-            flex-wrap:wrap;margin-bottom:.2rem}}
-.word-term{{font-size:.95rem;font-weight:700;color:#1e3a8a}}
-.word-pos{{font-size:.68rem;color:#9ca3af;font-style:italic}}
-.word-meaning{{font-size:.75rem;color:#374151;font-weight:500}}
-.word-sentence{{font-size:.72rem;color:#6b7280;font-style:italic;margin-bottom:.1rem}}
-.word-sentence-ko{{font-size:.7rem;color:#9ca3af}}
+           padding:.45rem 1rem;flex:1;max-width:680px;margin-left:1rem}}
+.word-header{{font-size:.62rem;font-weight:600;color:#9ca3af;
+              text-transform:uppercase;letter-spacing:.5px;margin-bottom:.15rem}}
+.word-main{{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:.1rem}}
+.word-term{{font-size:.88rem;font-weight:700;color:#1e3a8a}}
+.word-pos{{font-size:.65rem;color:#9ca3af;font-style:italic}}
+.word-meaning{{font-size:.72rem;color:#374151;font-weight:500}}
+.word-sentence{{font-size:.7rem;color:#6b7280;font-style:italic;margin-bottom:.05rem}}
+.word-sentence-ko{{font-size:.68rem;color:#9ca3af}}
 
 /* 섹션 라벨 */
 .sec-label{{font-size:.72rem;font-weight:600;text-transform:uppercase;
@@ -1292,12 +1317,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     }});
   }}
 
-  // ── SM뉴스 그리드 열 조정 (5~6개 → 3열)
-  const smGrid = document.querySelector('.sm-news-grid');
-  if (smGrid) {{
-    const cnt = parseInt(smGrid.dataset.count || '0');
-    if (cnt >= 5) smGrid.classList.add('cols3');
-  }}
+  // ── SM뉴스 그리드 항상 2열 고정 (cols3 제거)
 
   // ── 안내박스 접기 토글
   const guideBtn = document.getElementById('guideToggleBtn');
