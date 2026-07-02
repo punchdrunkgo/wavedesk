@@ -1,0 +1,41 @@
+name: WaveDesk Daily Briefing
+
+on:
+  schedule:
+    - cron: '0 23 * * *'   # KST 08:00 (주 실행)
+    - cron: '30 0 * * *'   # KST 09:30 (보험용)
+  workflow_dispatch:
+
+jobs:
+  crawl-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: Run crawler
+        run: python crawl_and_publish.py --output . --no-push
+        env:
+          PYTHONIOENCODING: utf-8
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main || true
+          git add index.html
+          git diff --cached --quiet || git commit -m "briefing: $(TZ='Asia/Seoul' date '+%Y-%m-%d %H:%M') KST"
+          git push
