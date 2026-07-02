@@ -309,45 +309,64 @@ def translate_titles(news_list):
 
 
 def get_news():
-    news = []
-    # 해외 — Google 뉴스 영어 RSS
-    en_queries = [
-        ("shipping freight rates", 4),
-        ("container shipping market", 3),
-        ("bulk carrier tanker shipping", 2),
-        ("maritime industry news", 3),
+    """국내/해외 각 10~15개, 해운 우선 정렬"""
+    # 해운 핵심 키워드 (우선순위 높음)
+    SHIPPING_KW = [
+        "컨테이너", "벌크", "탱커", "해운", "운임", "선박", "선사",
+        "VLCC", "Capesize", "freight", "shipping", "vessel", "tanker",
+        "bulk", "container", "LNG carrier", "charter"
     ]
-    for q, cnt in en_queries:
-        got = fetch_google_news(q.replace(" ","+"), "en", "해외뉴스", "Shipping News", cnt)
-        news += got
 
-    # 국내 — 핵심 해운 (우선순위 높음)
+    def is_shipping(title):
+        t = title.lower()
+        return any(k.lower() in t for k in SHIPPING_KW)
+
+    # 해외 — 15개 목표
+    en_queries = [
+        ("shipping+freight+rates", 4),
+        ("container+shipping+market", 3),
+        ("bulk+carrier+shipping", 3),
+        ("tanker+freight+rate", 3),
+        ("maritime+industry+news", 3),
+        ("LNG+carrier+charter", 2),
+    ]
+    en_all = []
+    for q, cnt in en_queries:
+        en_all += fetch_google_news(q, "en", "해외뉴스", "Shipping News", cnt)
+
+    # 국내 — 15개 목표
     ko_core = [
         ("해운+운임", 5),
-        ("해운+물류+컨테이너", 4),
-        ("벌크선+탱커+해운", 3),
-        ("컨테이너선+운임", 3),
+        ("컨테이너선+운임", 4),
+        ("벌크선+탱커+해운", 4),
         ("해상운임+물동량", 3),
+        ("해운+선사", 3),
     ]
-    # 국내 — 관련 분야 (선박·조선·수산·원양 등)
     ko_related = [
         ("조선+선박+수주", 3),
-        ("원양어선+수산", 2),
-        ("LNG선+벙커링", 2),
+        ("LNG선+해운", 2),
         ("항만+물류+수출", 2),
-        ("선사+해운사", 2),
+        ("원양+해운", 2),
     ]
+    ko_all = []
     for q, cnt in ko_core + ko_related:
-        got = fetch_google_news(q, "ko", "구글뉴스", "국내뉴스", cnt)
-        news += got
+        ko_all += fetch_google_news(q, "ko", "구글뉴스", "국내뉴스", cnt)
 
-    seen, result = set(), []
-    for n in news:
-        key = n["title"][:25]
-        if key not in seen:
-            seen.add(key)
-            result.append(n)
+    def dedup_sort(items):
+        seen, result = set(), []
+        for n in items:
+            key = n["title"][:25]
+            if key not in seen:
+                seen.add(key)
+                result.append(n)
+        # 해운 관련을 위에, 나머지 아래
+        result.sort(key=lambda x: 0 if is_shipping(x["title"]) else 1)
+        return result
 
+    ko_news = dedup_sort(ko_all)[:15]
+    en_news = dedup_sort(en_all)[:15]
+
+    result = ko_news + en_news
     result = translate_titles(result)
     return result
 
@@ -387,16 +406,16 @@ SM_QUERIES = [
 ]
 
 def get_sm_news():
-    """SM그룹 전체 계열사 뉴스 - Google RSS, 최근 3일치"""
+    """SM그룹 전체 계열사 뉴스 - 최근 3일치, 매일 갱신, 최소 6개 목표"""
     items = []
-    cutoff = NOW - timedelta(days=3)
+    cutoff = NOW - timedelta(days=3)  # 3일 이내
 
     for q in SM_QUERIES:
         url = f"https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
         try:
             r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
             root = ET.fromstring(r.content)
-            for item in root.findall(".//item")[:6]:
+            for item in root.findall(".//item")[:8]:
                 title = (item.findtext("title") or "").strip()
                 link  = (item.findtext("link") or "").strip()
                 pub   = (item.findtext("pubDate") or "").strip()
@@ -410,8 +429,8 @@ def get_sm_news():
                             continue
                     except Exception:
                         pass
-                is_shipping = any(c in title for c in SM_SHIPPING)
-                category = "해운" if is_shipping else "그룹"
+                is_ship = any(c in title for c in SM_SHIPPING)
+                category = "해운" if is_ship else "그룹"
                 if title and link:
                     items.append({
                         "title": title, "url": link,
@@ -420,15 +439,49 @@ def get_sm_news():
         except Exception:
             pass
 
+    # 6개 미달 시 cutoff 완화해서 재수집 (7일로 확장)
+    if len(items) < 6:
+        cutoff2 = NOW - timedelta(days=7)
+        for q in SM_QUERIES[:5]:
+            if len(items) >= 6:
+                break
+            url = f"https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
+            try:
+                r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+                root = ET.fromstring(r.content)
+                for item in root.findall(".//item")[:10]:
+                    title = (item.findtext("title") or "").strip()
+                    link  = (item.findtext("link") or "").strip()
+                    src_el = item.find("source")
+                    lbl = src_el.text.strip() if src_el is not None else "뉴스"
+                    pub   = (item.findtext("pubDate") or "").strip()
+                    if pub:
+                        try:
+                            pub_dt = datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z")
+                            pub_dt = pub_dt.replace(tzinfo=timezone.utc).astimezone(KST)
+                            if pub_dt < cutoff2:
+                                continue
+                        except Exception:
+                            pass
+                    is_ship = any(c in title for c in SM_SHIPPING)
+                    if title and link:
+                        items.append({
+                            "title": title, "url": link,
+                            "label": lbl,
+                            "category": "해운" if is_ship else "그룹"
+                        })
+            except Exception:
+                pass
+
     seen, result = set(), []
     for n in items:
         key = n["title"][:25]
         if key not in seen:
             seen.add(key)
             result.append(n)
-    # 해운 계열사 뉴스 우선
+
     result.sort(key=lambda x: 0 if x["category"] == "해운" else 1)
-    return result[:8]
+    return result[:8]  # 최대 8개
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -509,9 +562,9 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news):
                        "https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000")
     )
 
-    # 뉴스: 좌=국내(구글뉴스) / 우=해외
-    ko_news = [n for n in news if n["source"] == "구글뉴스"][:8]
-    en_news = [n for n in news if n["source"] == "해외뉴스"][:8]
+    # 뉴스 국내/해외 분리 (각 최대 15개)
+    ko_news = [n for n in news if n["source"] == "구글뉴스"][:15]
+    en_news = [n for n in news if n["source"] == "해외뉴스"][:15]
 
     def news_rows_html(items, show_tag=False):
         rows = ""
@@ -654,7 +707,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .news-col-header{{display:flex;align-items:center;gap:6px;padding:.65rem 1rem;
                   background:#f8faff;border-bottom:1px solid #e5e7eb;
                   font-size:.8rem;font-weight:600;color:#1e3a8a}}
-.news-inner{{display:flex;flex-direction:column;max-height:330px;overflow-y:auto}}
+.news-inner{{display:flex;flex-direction:column;max-height:200px;overflow-y:auto}}
 .src-mini-header{{padding:.3rem 1rem;background:#f9fafb;
                   font-size:.68rem;color:#9ca3af;border-bottom:1px solid #f3f4f6}}
 .news-row{{display:flex;align-items:center;justify-content:space-between;
