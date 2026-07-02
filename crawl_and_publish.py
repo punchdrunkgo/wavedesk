@@ -181,51 +181,66 @@ def get_indices():
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
 
-    # USD/KRW 환율 — 네이버 금융 직접 파싱 (오늘자+전일비)
+    # USD/KRW 환율 — 네이버 금융 직접 파싱
     try:
         r = requests.get(
             "https://finance.naver.com/marketindex/",
-            headers={**HEADERS, "Referer": "https://finance.naver.com/"},
+            headers={**HEADERS, "Referer": "https://finance.naver.com/",
+                     "Accept": "text/html,application/xhtml+xml"},
             timeout=10)
         r.encoding = "utf-8"
         soup2 = BeautifulSoup(r.text, "lxml")
         krw_val, krw_chg = None, ""
-        # 네이버 환율 테이블 파싱
-        for row in soup2.select("#exchangeList li, .lst_exchange li, table.tbl_exchange tr"):
-            txt = row.get_text(" ", strip=True)
-            if "미국" in txt or ("달러" in txt and "USD" in txt) or txt.startswith("USD"):
-                nums = re.findall(r"[\d,]+\.?\d*", txt)
-                if nums:
-                    krw_val = nums[0].replace(",","")
-                diffs = re.findall(r"([\+\-][\d,]+\.?\d*)", txt)
-                if diffs:
-                    diff = float(diffs[0].replace(",",""))
-                    krw_f = float(krw_val) if krw_val else 1400
-                    pct = round(diff / krw_f * 100, 2)
-                    krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
+
+        # 방법1: 리스트 셀렉터
+        for sel in ["#exchangeList li", ".lst_exchange li",
+                    ".market1 tbody tr", ".tbl_exchange tbody tr"]:
+            for row in soup2.select(sel):
+                txt = row.get_text(" ", strip=True)
+                if "미국" in txt or "달러" in txt or "USD" in txt:
+                    nums = re.findall(r"[\d,]{3,}\.\d+", txt)
+                    if not nums:
+                        nums = re.findall(r"[\d,]{4,}", txt)
+                    if nums:
+                        candidate = float(nums[0].replace(",",""))
+                        if 900 < candidate < 2000:  # 유효 환율 범위
+                            krw_val = str(round(candidate))
+                    diffs = re.findall(r"([\+\-][\d,]+\.?\d*)", txt)
+                    if diffs and krw_val:
+                        diff = float(diffs[0].replace(",",""))
+                        pct = round(diff / float(krw_val) * 100, 2)
+                        krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
+                    break
+            if krw_val:
                 break
-        # fallback: API
+
+        # 방법2: 페이지 전체에서 환율 패턴 정규식
         if not krw_val:
-            r2 = requests.get("https://api.exchangerate.fun/latest?base=USD",
-                              headers=HEADERS, timeout=8)
-            d2 = r2.json()
-            krw_val = str(round(float(d2["rates"]["KRW"])))
+            m = re.search(r"USD[^\d]{0,20}(1[,.]?\d{3}\.?\d*)", r.text)
+            if not m:
+                m = re.search(r"(1[,\d]{3}\.?\d*)[^\d]{0,5}원", r.text)
+            if m:
+                candidate = float(m.group(1).replace(",",""))
+                if 900 < candidate < 2000:
+                    krw_val = str(round(candidate))
+
         base["USD/KRW"] = {
-            "value": f"{int(float(krw_val)):,}" if krw_val else "—",
+            "value": f"{int(krw_val):,}" if krw_val else "—",
             "change": krw_chg,
             "label": "원달러환율",
             "date": NOW.strftime("%Y-%m-%d"),
             "url": "https://finance.naver.com/marketindex/",
-            "note": "일 1회 · 네이버금융"
+            "note": "매일 · 네이버금융"
         }
+        if not krw_val:
+            print("  [환율 경고] 파싱은 됐으나 수치 추출 실패")
     except Exception as e:
         print(f"  [환율 오류] {e}")
-        # 최후 fallback: 고정값 대신 빈 값이라도 날짜는 채워서 표시
         base["USD/KRW"] = {
-            "value": "확인중", "change": "", "label": "원달러환율",
+            "value": "—", "change": "", "label": "원달러환율",
             "date": NOW.strftime("%Y-%m-%d"),
             "url": "https://finance.naver.com/marketindex/",
-            "note": "일 1회 · 네이버금융"
+            "note": "매일 · 네이버금융"
         }
 
     return base, kdci_routes, kcci_routes, ncfi_routes
@@ -531,7 +546,7 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news):
           <span class="sm-news-icon">🚢</span> SM그룹 계열사 소식
           <span class="sm-news-sub">최근 3일 · Google 뉴스</span>
         </div>
-        <div class="sm-news-grid">
+        <div class="sm-news-grid" data-count="{len(sm_news)}">
           {sm_rows if sm_rows else '<div class="sm-news-empty">최근 3일 뉴스가 없어요</div>'}
         </div>
       </div>"""
@@ -725,7 +740,8 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .sm-news-icon{{font-size:.9rem}}
 .sm-news-sub{{font-size:.67rem;color:#6b7280;font-weight:400;margin-left:auto}}
 .sm-news-grid{{display:grid;grid-template-columns:1fr 1fr;gap:4px;
-               max-height:220px;overflow-y:auto}}
+               max-height:240px;overflow-y:auto}}
+.sm-news-grid.cols3{{grid-template-columns:1fr 1fr 1fr}}
 .sm-news-row{{display:flex;align-items:center;gap:6px;padding:.38rem .6rem;
               border-radius:6px;background:#fff;border:1px solid #e0e7ff;
               text-decoration:none;color:inherit;transition:border-color .12s;
@@ -800,9 +816,16 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .eua-dday.far{{background:#e0f2fe;color:#0369a1}}
 .eua-note{{font-size:.68rem;color:#9ca3af}}
 
-/* 안내 박스 */
-.guide-box{{background:#fff;border:1px solid #e5e7eb;border-radius:12px;
-            padding:1rem 1.25rem;margin-bottom:.75rem}}
+/* 안내 박스 접기 */
+.guide-collapse{{border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-top:.5rem}}
+.guide-toggle{{width:100%;display:flex;justify-content:space-between;align-items:center;
+               padding:.55rem .9rem;background:#f8faff;border:none;cursor:pointer;
+               font-size:.76rem;font-weight:600;color:#374151;font-family:inherit;text-align:left}}
+.guide-toggle:hover{{background:#eff6ff;color:#1e3a8a}}
+.guide-toggle-arrow{{font-size:.7rem;color:#9ca3af;transition:transform .2s}}
+.guide-toggle.open .guide-toggle-arrow{{transform:rotate(180deg)}}
+.guide-collapse-body{{display:none;padding:.65rem .9rem .75rem}}
+.guide-collapse-body.open{{display:block}}
 .guide-title{{font-size:.8rem;font-weight:600;color:#1e3a8a;margin-bottom:.6rem}}
 .guide-steps{{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.5rem}}
 .guide-step{{display:flex;align-items:center;gap:5px;font-size:.75rem;color:#374151;
@@ -846,7 +869,6 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   <!-- 내 사이트 (뉴스 위) -->
   <div class="my-site-header">
     <span class="my-site-label">⭐ 내 사이트</span>
-    <span class="my-site-hint">아래 ＋ 클릭으로 추가 · 항목 클릭으로 이동 · 이 브라우저에만 저장</span>
   </div>
   <div class="my-site-grid droptarget" id="mySiteGrid">
     <div class="my-empty" id="myEmpty">아래 섹션의 ＋ 버튼을 클릭해서 추가하세요</div>
@@ -979,17 +1001,22 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <div class="eua-note">IMO DCS·EU-ETS·FuelEU·EUA 선물 만기일 기준 (KST 자정 기준)</div>
     </div>
 
-    <!-- 안내 박스 -->
-    <div class="guide-box">
-      <div class="guide-title">💡 WaveDesk를 크롬 시작 페이지로 설정하는 방법</div>
-      <div class="guide-steps">
-        <div class="guide-step"><span class="guide-num">1</span>크롬 우측 상단 <b>⋮</b> (점 세 개) 클릭</div>
-        <div class="guide-step"><span class="guide-num">2</span><b>설정</b> 클릭</div>
-        <div class="guide-step"><span class="guide-num">3</span>좌측 메뉴 <b>시작 그룹</b> 선택</div>
-        <div class="guide-step"><span class="guide-num">4</span><b>특정 페이지 또는 페이지 집합 열기</b> 선택</div>
-        <div class="guide-step"><span class="guide-num">5</span><b>새 페이지 추가</b> 후 이 페이지 URL 입력 → 저장</div>
+    <!-- 안내 박스 - 접기 가능 -->
+    <div class="guide-collapse">
+      <button class="guide-toggle" id="guideToggleBtn">
+        💡 WaveDesk를 크롬 시작 페이지로 설정하는 방법
+        <span class="guide-toggle-arrow">▾</span>
+      </button>
+      <div class="guide-collapse-body" id="guideCollapseBody">
+        <div class="guide-steps">
+          <div class="guide-step"><span class="guide-num">1</span>크롬 우측 상단 <b>⋮</b> (점 세 개) 클릭</div>
+          <div class="guide-step"><span class="guide-num">2</span><b>설정</b> 클릭</div>
+          <div class="guide-step"><span class="guide-num">3</span>좌측 메뉴 <b>시작 그룹</b> 선택</div>
+          <div class="guide-step"><span class="guide-num">4</span><b>특정 페이지 또는 페이지 집합 열기</b> 선택</div>
+          <div class="guide-step"><span class="guide-num">5</span><b>새 페이지 추가</b> 후 이 페이지 URL 입력 → 저장</div>
+        </div>
+        <div class="guide-note">크롬을 열 때마다 WaveDesk가 자동으로 표시됩니다. 뉴스와 지수는 매일 08:00 KST에 자동 업데이트됩니다.</div>
       </div>
-      <div class="guide-note">크롬을 열 때마다 WaveDesk가 자동으로 표시됩니다. 뉴스와 지수는 매일 08:00 KST에 자동 업데이트됩니다.</div>
     </div>
   </div>
 
@@ -1164,6 +1191,24 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
         : '📂 운임지수 · 연료·환경 · 통계·보고서 펼치기 <span class="collapse-arrow">▾</span>';
     }});
   }}
+
+  // ── SM뉴스 그리드 열 조정 (5~6개 → 3열)
+  const smGrid = document.querySelector('.sm-news-grid');
+  if (smGrid) {{
+    const cnt = parseInt(smGrid.dataset.count || '0');
+    if (cnt >= 5) smGrid.classList.add('cols3');
+  }}
+
+  // ── 안내박스 접기 토글
+  const guideBtn = document.getElementById('guideToggleBtn');
+  const guideBody = document.getElementById('guideCollapseBody');
+  if (guideBtn && guideBody) {{
+    guideBtn.addEventListener('click', () => {{
+      const isOpen = guideBody.classList.toggle('open');
+      guideBtn.classList.toggle('open', isOpen);
+    }});
+  }}
+
   (function() {{
     const euaEl = document.getElementById('euaDday');
     if (!euaEl) return;
