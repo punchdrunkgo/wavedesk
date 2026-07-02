@@ -181,47 +181,51 @@ def get_indices():
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
 
-    # USD/KRW 환율 — exchangerate.fun (HTTPS, 무료, API키 불필요)
-    # 전일비는 네이버 금융 마켓인덱스에서 파싱
+    # USD/KRW 환율 — 네이버 금융 직접 파싱 (오늘자+전일비)
     try:
-        r = requests.get("https://api.exchangerate.fun/latest?base=USD",
-                         headers=HEADERS, timeout=10)
-        data = r.json()
-        krw = float(data.get("rates", {}).get("KRW", 0))
-        if not krw:
-            raise ValueError("KRW rate not found")
-        chg_str = ""
-        try:
-            r2 = requests.get("https://finance.naver.com/marketindex/",
-                              headers={**HEADERS, "Referer": "https://finance.naver.com/"},
-                              timeout=10)
-            r2.encoding = "utf-8"
-            soup2 = BeautifulSoup(r2.text, "lxml")
-            for item in soup2.select("#exchangeList li, .lst_exchange li"):
-                txt = item.get_text(" ", strip=True)
-                if "달러" in txt or "USD" in txt:
-                    nums = re.findall(r"[\+\-][\d.]+", txt)
-                    if nums:
-                        diff = float(nums[0])
-                        pct = round(diff / krw * 100, 2)
-                        chg_str = f"+{pct}%" if pct >= 0 else f"{pct}%"
-                    break
-        except Exception:
-            pass
+        r = requests.get(
+            "https://finance.naver.com/marketindex/",
+            headers={**HEADERS, "Referer": "https://finance.naver.com/"},
+            timeout=10)
+        r.encoding = "utf-8"
+        soup2 = BeautifulSoup(r.text, "lxml")
+        krw_val, krw_chg = None, ""
+        # 네이버 환율 테이블 파싱
+        for row in soup2.select("#exchangeList li, .lst_exchange li, table.tbl_exchange tr"):
+            txt = row.get_text(" ", strip=True)
+            if "미국" in txt or ("달러" in txt and "USD" in txt) or txt.startswith("USD"):
+                nums = re.findall(r"[\d,]+\.?\d*", txt)
+                if nums:
+                    krw_val = nums[0].replace(",","")
+                diffs = re.findall(r"([\+\-][\d,]+\.?\d*)", txt)
+                if diffs:
+                    diff = float(diffs[0].replace(",",""))
+                    krw_f = float(krw_val) if krw_val else 1400
+                    pct = round(diff / krw_f * 100, 2)
+                    krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
+                break
+        # fallback: API
+        if not krw_val:
+            r2 = requests.get("https://api.exchangerate.fun/latest?base=USD",
+                              headers=HEADERS, timeout=8)
+            d2 = r2.json()
+            krw_val = str(round(float(d2["rates"]["KRW"])))
         base["USD/KRW"] = {
-            "value": f"{round(krw):,}",
-            "change": chg_str,
+            "value": f"{int(float(krw_val)):,}" if krw_val else "—",
+            "change": krw_chg,
             "label": "원달러환율",
             "date": NOW.strftime("%Y-%m-%d"),
             "url": "https://finance.naver.com/marketindex/",
-            "note": "일 1회 · exchangerate.fun"
+            "note": "일 1회 · 네이버금융"
         }
     except Exception as e:
         print(f"  [환율 오류] {e}")
+        # 최후 fallback: 고정값 대신 빈 값이라도 날짜는 채워서 표시
         base["USD/KRW"] = {
-            "value": "—", "change": "", "label": "원달러환율",
-            "date": "", "url": "https://finance.naver.com/marketindex/",
-            "note": "일 1회 · exchangerate.fun"
+            "value": "확인중", "change": "", "label": "원달러환율",
+            "date": NOW.strftime("%Y-%m-%d"),
+            "url": "https://finance.naver.com/marketindex/",
+            "note": "일 1회 · 네이버금융"
         }
 
     return base, kdci_routes, kcci_routes, ncfi_routes
@@ -768,11 +772,24 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 .my-add-btn{{display:none}} /* 상단 직접추가 버튼 숨김 */
 
+/* 접기 패널 */
+.collapse-panel{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
+                 margin-bottom:.75rem;overflow:hidden}}
+.collapse-toggle{{width:100%;display:flex;justify-content:space-between;
+                  align-items:center;padding:.6rem .9rem;background:#f8faff;
+                  border:none;cursor:pointer;font-size:.78rem;font-weight:600;
+                  color:#374151;font-family:inherit;text-align:left}}
+.collapse-toggle:hover{{background:#eff6ff;color:#1e3a8a}}
+.collapse-arrow{{font-size:.72rem;color:#9ca3af;transition:transform .2s}}
+.collapse-toggle.open .collapse-arrow{{transform:rotate(180deg)}}
+.collapse-body{{display:none;padding:.6rem .9rem .75rem}}
+.collapse-body.open{{display:block}}
+
 /* EUA D-Day 박스 */
 .eua-box{{background:#fff;border:1px solid #e5e7eb;border-radius:12px;
-          padding:1rem 1.25rem;margin-bottom:.75rem}}
+          padding:.85rem 1.1rem;margin-bottom:.75rem}}
 .eua-title{{font-size:.8rem;font-weight:600;color:#1e3a8a;margin-bottom:.5rem}}
-.eua-body{{display:flex;flex-direction:column;gap:4px;margin-bottom:.4rem}}
+.eua-body{{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:.4rem}}
 .eua-item{{display:flex;align-items:center;gap:8px;padding:5px 10px;
            border-radius:7px;background:#f8faff;border:1px solid #e5e7eb}}
 .eua-year{{font-size:.7rem;color:#6b7280;font-weight:600;flex-shrink:0}}
@@ -844,46 +861,60 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
   <div class="sites-section">
     <div class="sec-label">🔗 주요 사이트</div>
 
-    <!-- 운임지수 -->
-    <div class="site-group-label">📈 운임지수</div>
-    <div class="site-link-row" id="group-idx">
-      <div class="site-link-item draggable" draggable="true" data-name="SCFI·KCCI·CCFI — surff.kr" data-url="https://surff.kr/indices"><a href="https://surff.kr/indices" target="_blank">SCFI·KCCI·CCFI — surff.kr</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="SCFI·CCFI·BDI — 국가물류통합정보센터" data-url="https://nlic.go.kr/nlic/ocnStatisticBoard.action"><a href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">SCFI·CCFI·BDI — 국가물류통합정보센터</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="BDI·BCI·BPI — 쉬핑뉴스넷" data-url="https://www.shippingnewsnet.com/sdata/page.html?term=1"><a href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">BDI·BCI·BPI — 쉬핑뉴스넷</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="KCCI — 한국해양진흥공사" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">KCCI — 한국해양진흥공사</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="Baltic Exchange" data-url="https://www.balticexchange.com/en/index.html"><a href="https://www.balticexchange.com/en/index.html" target="_blank">Baltic Exchange</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="SCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/scfinew.jsp"><a href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">SCFI — 상하이해운거래소</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="CCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/ccfinew.jsp"><a href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">CCFI — 상하이해운거래소</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="TradLinx 해운 블로그" data-url="https://www.tradlinx.com/blog/"><a href="https://www.tradlinx.com/blog/" target="_blank">TradLinx 해운 블로그</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="탱커 TCE·Worldscale" data-url="https://www.spotmarketcap.com/shipping"><a href="https://www.spotmarketcap.com/shipping" target="_blank">탱커 TCE·Worldscale</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+    <!-- 운임지수/연료환경/통계 접기 패널 -->
+    <div class="collapse-panel">
+      <button class="collapse-toggle" id="siteToggleBtn">
+        📂 운임지수 · 연료·환경 · 통계·보고서 펼치기 <span class="collapse-arrow">▾</span>
+      </button>
+      <div class="collapse-body" id="siteCollapseBody">
+        <!-- 운임지수 -->
+        <div class="site-group-label">📈 운임지수</div>
+        <div class="site-link-row" id="group-idx">
+          <div class="site-link-item draggable" draggable="true" data-name="SCFI·KCCI·CCFI — surff.kr" data-url="https://surff.kr/indices"><a href="https://surff.kr/indices" target="_blank">SCFI·KCCI·CCFI — surff.kr</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="SCFI·CCFI·BDI — 국가물류통합정보센터" data-url="https://nlic.go.kr/nlic/ocnStatisticBoard.action"><a href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">SCFI·CCFI·BDI — 국가물류통합정보센터</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="BDI·BCI·BPI — 쉬핑뉴스넷" data-url="https://www.shippingnewsnet.com/sdata/page.html?term=1"><a href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">BDI·BCI·BPI — 쉬핑뉴스넷</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KCCI — 한국해양진흥공사" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">KCCI — 한국해양진흥공사</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="Baltic Exchange" data-url="https://www.balticexchange.com/en/index.html"><a href="https://www.balticexchange.com/en/index.html" target="_blank">Baltic Exchange</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="SCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/scfinew.jsp"><a href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">SCFI — 상하이해운거래소</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="CCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/ccfinew.jsp"><a href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">CCFI — 상하이해운거래소</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="TradLinx 해운 블로그" data-url="https://www.tradlinx.com/blog/"><a href="https://www.tradlinx.com/blog/" target="_blank">TradLinx 해운 블로그</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="탱커 TCE·Worldscale" data-url="https://www.spotmarketcap.com/shipping"><a href="https://www.spotmarketcap.com/shipping" target="_blank">탱커 TCE·Worldscale</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+        </div>
+
+        <!-- 연료·환경 -->
+        <div class="site-group-label">⛽ 연료·환경</div>
+        <div class="site-link-row" id="group-env">
+          <div class="site-link-item draggable" draggable="true" data-name="글로벌 벙커유 — Ship&Bunker" data-url="https://shipandbunker.com/prices"><a href="https://shipandbunker.com/prices" target="_blank">⛽ 글로벌 벙커유 — Ship&Bunker</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="VLSFO 실시간 가격 — vlsfo.com" data-url="https://vlsfo.com/"><a href="https://vlsfo.com/" target="_blank">🛢️ VLSFO 실시간 가격 — vlsfo.com</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="EU-ETS 탄소배출권" data-url="https://shipandbunker.com/prices/ea/eu/eu-eua"><a href="https://shipandbunker.com/prices/ea/eu/eu-eua" target="_blank">💶 EU-ETS 탄소배출권</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="LNG 스팟 — LNG Prime" data-url="https://lngprime.com/"><a href="https://lngprime.com/" target="_blank">🔥 LNG 스팟 — LNG Prime</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="EUA 과거 가격" data-url="https://kr.investing.com/commodities/carbon-emissions-historical-data"><a href="https://kr.investing.com/commodities/carbon-emissions-historical-data" target="_blank">📉 EUA 과거 가격</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="JKM LNG 스팟" data-url="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures"><a href="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures" target="_blank">🌊 JKM LNG 스팟</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="벌크선 운영비·신조가" data-url="https://www.balticexchange.com/en/data-services/market-information0/indices.html"><a href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+        </div>
+
+        <!-- 통계·보고서 -->
+        <div class="site-group-label">📊 통계·보고서</div>
+        <div class="site-link-row" id="group-stat">
+          <div class="site-link-item draggable" draggable="true" data-name="해상 운송 통계" data-url="https://nlic.go.kr/nlic/seaStatisticBoard.action"><a href="https://nlic.go.kr/nlic/seaStatisticBoard.action" target="_blank">🚢 해상 운송 통계</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KOBC 일간 건화물선 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000" target="_blank">📄 KOBC 일간 건화물선 보고서</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KOBC 주간통합 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000" target="_blank">📄 KOBC 주간통합 보고서</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KDCI 세부지수" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊 KDCI 세부지수</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="NCFI 닝보 노선별" data-url="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="EMSA THETIS MRV" data-url="https://thetis.emsa.europa.eu/"><a href="https://thetis.emsa.europa.eu/" target="_blank">🇪🇺 EMSA THETIS MRV</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KR GEARS (탈탄소 플랫폼)" data-url="https://gears.krs.co.kr/"><a href="https://gears.krs.co.kr/" target="_blank">🔰 KR GEARS</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KOMSA SEM (온실가스 시스템)" data-url="https://sem.komsa.or.kr/"><a href="https://sem.komsa.or.kr/" target="_blank">♻️ KOMSA SEM</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+        </div>
+
+        <!-- 4번: 직접 추가 버튼 - 접기 패널 안으로 이동 -->
+        <div style="margin:.5rem 0 .25rem;display:flex;align-items:center;gap:10px">
+          <button class="direct-add-btn" id="addSiteBtn">＋ 내 사이트에 직접 추가</button>
+          <span style="font-size:.67rem;color:#86868b">URL을 직접 입력해서 내 사이트에 추가</span>
+        </div>
+      </div>
     </div>
 
-    <!-- 연료·환경 -->
-    <div class="site-group-label">⛽ 연료·환경</div>
-    <div class="site-link-row" id="group-env">
-      <div class="site-link-item draggable" draggable="true" data-name="글로벌 벙커유 — Ship&Bunker" data-url="https://shipandbunker.com/prices"><a href="https://shipandbunker.com/prices" target="_blank">⛽ 글로벌 벙커유 — Ship&Bunker</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="VLSFO 실시간 가격 — vlsfo.com" data-url="https://vlsfo.com/"><a href="https://vlsfo.com/" target="_blank">🛢️ VLSFO 실시간 가격 — vlsfo.com</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="EU-ETS 탄소배출권" data-url="https://shipandbunker.com/prices/ea/eu/eu-eua"><a href="https://shipandbunker.com/prices/ea/eu/eu-eua" target="_blank">💶 EU-ETS 탄소배출권</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="LNG 스팟 — LNG Prime" data-url="https://lngprime.com/"><a href="https://lngprime.com/" target="_blank">🔥 LNG 스팟 — LNG Prime</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="EUA 과거 가격" data-url="https://kr.investing.com/commodities/carbon-emissions-historical-data"><a href="https://kr.investing.com/commodities/carbon-emissions-historical-data" target="_blank">📉 EUA 과거 가격</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="JKM LNG 스팟" data-url="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures"><a href="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures" target="_blank">🌊 JKM LNG 스팟</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="벌크선 운영비·신조가" data-url="https://www.balticexchange.com/en/data-services/market-information0/indices.html"><a href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-    </div>
-
-    <!-- 통계·보고서 -->
-    <div class="site-group-label">📊 통계·보고서</div>
-    <div class="site-link-row" id="group-stat">
-      <div class="site-link-item draggable" draggable="true" data-name="해상 운송 통계" data-url="https://nlic.go.kr/nlic/seaStatisticBoard.action"><a href="https://nlic.go.kr/nlic/seaStatisticBoard.action" target="_blank">🚢 해상 운송 통계</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="KOBC 일간 건화물선 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000" target="_blank">📄 KOBC 일간 건화물선 보고서</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="KOBC 주간통합 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000" target="_blank">📄 KOBC 주간통합 보고서</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="KDCI 세부지수" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊 KDCI 세부지수</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="NCFI 닝보 노선별" data-url="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="EMSA THETIS MRV" data-url="https://thetis.emsa.europa.eu/"><a href="https://thetis.emsa.europa.eu/" target="_blank">🇪🇺 EMSA THETIS MRV</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="KR GEARS (탈탄소 플랫폼)" data-url="https://gears.krs.co.kr/"><a href="https://gears.krs.co.kr/" target="_blank">🔰 KR GEARS</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-      <div class="site-link-item draggable" draggable="true" data-name="KOMSA SEM (온실가스 시스템)" data-url="https://sem.komsa.or.kr/"><a href="https://sem.komsa.or.kr/" target="_blank">♻️ KOMSA SEM</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
-    </div>
-
-    <!-- 주요 해운 사이트 - 국내/해외 신문만 -->
+    <!-- 주요 해운 사이트 - 국내/해외 신문만 (항상 표시) -->
     <div class="site-group-label">📰 주요 해운 사이트</div>
     <div class="site-grid">
       <a class="site-card" href="https://www.ksg.co.kr/news/main_news.jsp" target="_blank">
@@ -902,12 +933,6 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
         <div class="site-card-name">Maritime Executive</div><div class="site-card-sub">해외 해운 전문 (영문)</div></a>
       <a class="site-card" href="https://splash247.com/" target="_blank">
         <div class="site-card-name">Splash247</div><div class="site-card-sub">해외 해운 뉴스 (영문)</div></a>
-    </div>
-
-    <!-- 직접 추가 버튼 - 주요 해운 사이트와 SM 계열사 사이 -->
-    <div style="margin:.65rem 0;padding:.55rem 0;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:10px">
-      <button class="direct-add-btn" id="addSiteBtn">＋ 내 사이트에 직접 추가</button>
-      <span style="font-size:.67rem;color:#86868b">URL을 직접 입력해서 내 사이트에 추가하세요</span>
     </div>
 
     <!-- SM 계열사 -->
@@ -1127,7 +1152,18 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
   renderMy(); updatePinDots();
 
-  // ── 중요 D-DAY 계산 (환경규제 + EUA 선물 만기)
+  // ── 주요사이트 접기 패널
+  const siteToggleBtn = document.getElementById('siteToggleBtn');
+  const siteCollapseBody = document.getElementById('siteCollapseBody');
+  if (siteToggleBtn && siteCollapseBody) {{
+    siteToggleBtn.addEventListener('click', () => {{
+      const isOpen = siteCollapseBody.classList.toggle('open');
+      siteToggleBtn.classList.toggle('open', isOpen);
+      siteToggleBtn.innerHTML = isOpen
+        ? '📂 운임지수 · 연료·환경 · 통계·보고서 접기 <span class="collapse-arrow">▾</span>'
+        : '📂 운임지수 · 연료·환경 · 통계·보고서 펼치기 <span class="collapse-arrow">▾</span>';
+    }});
+  }}
   (function() {{
     const euaEl = document.getElementById('euaDday');
     if (!euaEl) return;
