@@ -1,0 +1,212 @@
+[
+  {
+    "word": "Demurrage",
+    "pos": "n.",
+    "meaning": "체선료 — 하역 지연으로 선주에게 지급하는 배상금",
+    "sentence": "The charterer paid demurrage for the extra days the vessel stayed at berth.",
+    "sentence_ko": "용선자는 선박이 선석에 추가로 머문 기간에 대해 체선료를 지급했다."
+  },
+  {
+    "word": "Despatch",
+    "pos": "n.",
+    "meaning": "조출료 — 규정 시간보다 일찍 하역 완료 시 선주가 지급하는 금액",
+    "sentence": "The shipper earned despatch money by completing loading ahead of schedule.",
+    "sentence_ko": "화주는 예정보다 일찍 선적을 마쳐 조출료를 받았다."
+  },
+  {
+    "word": "Laytime",
+    "pos": "n.",
+    "meaning": "정박 허용 시간 — 용선 계약상 무료로 사용할 수 있는 하역 시간",
+    "sentence": "Laytime begins when the Notice of Readiness is accepted by the charterer.",
+    "sentence_ko": "정박 허용 시간은 준비 완료 통보가 용선자에게 수락되면 시작된다."
+  },
+  {
+    "word": "Bill of Lading",
+    "pos": "n.",
+    "meaning": "선하증권(B/L) — 선박 화물 수취·선적을 증명하는 유가 증권",
+    "sentence": "The original Bill of Lading must be presented to claim the cargo at destination.",
+    "sentence_ko": "목적지에서 화물을 수령하려면 원본 선하증권을 제시해야 한다."
+  },
+  {
+    "word": "Charter Party",
+    "pos": "n.",
+    "meaning": "용선 계약서 — 선박 임대차 계약의 표준 문서",
+    "sentence": "The Charter Party specified a freight rate of $25 per metric ton.",
+    "sentence_ko": "용선 계약서에는 미터톤당 25달러의 운임이 명시되었다."
+  },
+  {
+    "word": "Dead Freight",
+    "pos": "n.",
+    "meaning": "공간 운임 — 예약했으나 사용하지 않은 선복에 대한 위약 운임",
+    "sentence": "The shipper was charged dead freight for the unfilled cargo space.",
+    "sentence_ko": "화주는 채우지 않은 화물 공간에 대해 공간 운임을 청구받았다."
+  },
+  {
+    "word": "CII (Carbon Intensity Indicator)",
+    "pos": "n.",
+    "meaning": "탄소 집약도 지표 — IMO의 선박 온실가스 배출 등급 평가 지표",
+    "sentence": "Ships rated D or E on CII must submit a corrective action plan.",
+    "sentence_ko": "CII 등급 D 또는 E를 받은 선박은 시정 조치 계획서를 제출해야 한다."
+  },
+  {
+    "word": "Bunker Adjustment Factor",
+    "pos": "n.",
+    "meaning": "유류 할증료(BAF) — 유가 변동을 운임에 반영하는 추가 요금",
+    "sentence": "The carrier applied a high BAF due to the surge in VLSFO prices.",
+    "sentence_ko": "선사는 VLSFO 가격 급등으로 높은 유류 할증료를 적용했다."
+  },
+  {
+    "word": "Draft Survey",
+    "pos": "n.",
+    "meaning": "흘수 검사 — 선박의 흘수를 측정해 화물 중량을 산정하는 방법",
+    "sentence": "A draft survey was conducted before and after loading to determine the cargo weight.",
+    "sentence_ko": "화물 중량을 산정하기 위해 선적 전후로 흘수 검사를 실시했다."
+  },
+  {
+    "word": "Freight All Kinds (FAK)",
+    "pos": "n.",
+    "meaning": "품목 무차별 운임 — 화물 종류와 관계없이 동일하게 적용되는 운임",
+    "sentence": "The carrier offered an FAK rate to simplify billing for mixed cargo.",
+    "sentence_ko": "선사는 혼재 화물의 청구를 간소화하기 위해 FAK 운임을 제안했다."
+  },
+  {
+    "word": "Lien",
+    "pos": "n.",
+    "meaning": "유치권 — 미수금 확보를 위해 화물을 억류할 수 있는 권리",
+    "sentence": "The carrier exercised a lien on the cargo pending payment of freight.",
+    "sentence_ko": "선사는 운임 미수금이 해결될 때까지 화물에 유치권을 행사했다."
+  },
+  {
+    "word": "Notice of Readiness (NOR)",
+    "pos": "n.",
+    "meaning": "준비 완료 통보 — 선박이 하역 준비가 됐음을 통보하는 공식 문서",
+    "sentence": "The master tendered NOR upon arrival at the anchorage.",
+    "sentence_ko": "선장은 정박지 도착 즉시 준비 완료 통보를 발행했다."
+  },
+  {
+    "word": "Slot Charter",
+    "pos": "n.",
+    "meaning": "선복 용선 — 컨테이너선의 일부 선복(슬롯)만 임차하는 계약",
+    "sentence": "Both carriers signed a slot charter agreement to share capacity on the Asia-Europe route.",
+    "sentence_ko": "두 선사는 아시아-유럽 노선에서 선복을 공유하기 위한 슬롯 용선 계약을 체결했다."
+  },
+  {
+    "word": "Worldscale",
+    "pos": "n.",
+    "meaning": "월드스케일 — 탱커 운임의 기준 지수(100 기준)",
+    "sentence": "The VLCC was fixed at Worldscale 65 for the Middle East to Korea voyage.",
+    "sentence_ko": "VLCC는 중동-한국 항로에 대해 월드스케일 65로 용선 계약이 체결됐다."
+  },
+  {
+    "word": "Ballast",
+    "pos": "n./v.",
+    "meaning": "밸러스트 — 화물 없이 항해할 때 선박 안정을 위해 적재하는 평형수",
+    "sentence": "The vessel sailed in ballast from Japan to the loading port in Australia.",
+    "sentence_ko": "선박은 일본에서 호주 선적항까지 밸러스트 상태로 항해했다."
+  },
+  {
+    "word": "ETA (Estimated Time of Arrival)",
+    "pos": "n.",
+    "meaning": "예상 도착 시간 — 선박의 예상 입항 시각",
+    "sentence": "The vessel's ETA at Busan is 14:00 local time on Friday.",
+    "sentence_ko": "선박의 부산 예상 도착 시간은 금요일 현지 시각 오후 2시다."
+  },
+  {
+    "word": "Free Pratique",
+    "pos": "n.",
+    "meaning": "검역 면제 허가 — 항만 당국이 선박에 부여하는 자유 입항 허가",
+    "sentence": "The vessel was granted free pratique after passing the port health inspection.",
+    "sentence_ko": "선박은 항만 보건 검사를 통과한 후 검역 면제 허가를 받았다."
+  },
+  {
+    "word": "Gross Tonnage (GT)",
+    "pos": "n.",
+    "meaning": "총톤수 — 선박의 전체 내부 용적을 나타내는 공식 측정 단위",
+    "sentence": "Ships over 5,000 GT are subject to the EU MRV regulation.",
+    "sentence_ko": "5,000 GT를 초과하는 선박은 EU MRV 규정의 적용을 받는다."
+  },
+  {
+    "word": "IMDG Code",
+    "pos": "n.",
+    "meaning": "국제 해상 위험물 규칙 — IMO의 위험 화물 해상 운송 규정",
+    "sentence": "The cargo must be packed and labeled in accordance with the IMDG Code.",
+    "sentence_ko": "화물은 IMDG 코드에 따라 포장되고 표시되어야 한다."
+  },
+  {
+    "word": "Laycan",
+    "pos": "n.",
+    "meaning": "용선 가능 기간 — 선박이 용선 준비 완료되어야 하는 기간 범위",
+    "sentence": "The laycan was set between October 10–15 to allow flexibility for both parties.",
+    "sentence_ko": "용선 가능 기간은 양측의 유연성을 위해 10월 10일~15일로 설정됐다."
+  },
+  {
+    "word": "Port State Control (PSC)",
+    "pos": "n.",
+    "meaning": "항만 국가 통제 — 외국 선박의 안전·환경 기준 준수 여부를 점검하는 제도",
+    "sentence": "The vessel was detained by PSC inspectors for deficiencies in fire safety equipment.",
+    "sentence_ko": "선박은 소화 안전 장비 결함으로 PSC 검사관에 의해 억류됐다."
+  },
+  {
+    "word": "Scrubber",
+    "pos": "n.",
+    "meaning": "스크러버 — 선박 배기가스 세정 장치(황산화물 저감 설비)",
+    "sentence": "Installing a scrubber allows the vessel to use cheaper high-sulfur fuel oil.",
+    "sentence_ko": "스크러버 설치 시 선박은 더 저렴한 고유황 연료유를 사용할 수 있다."
+  },
+  {
+    "word": "TEU (Twenty-foot Equivalent Unit)",
+    "pos": "n.",
+    "meaning": "20피트 컨테이너 환산 단위 — 컨테이너 선적량의 표준 단위",
+    "sentence": "The vessel has a capacity of 23,000 TEU, making it one of the largest in service.",
+    "sentence_ko": "해당 선박은 2만 3천 TEU의 용량을 보유해 현재 운항 중인 선박 중 최대급이다."
+  },
+  {
+    "word": "Voyage Charter",
+    "pos": "n.",
+    "meaning": "항해 용선 — 특정 항해 단위로 체결하는 용선 계약",
+    "sentence": "A voyage charter was agreed for one cargo of iron ore from Brazil to China.",
+    "sentence_ko": "브라질에서 중국으로 철광석 1회 운송에 대한 항해 용선 계약이 체결됐다."
+  },
+  {
+    "word": "VLSFO (Very Low Sulfur Fuel Oil)",
+    "pos": "n.",
+    "meaning": "초저유황 연료유 — IMO 2020 규제에 따라 황 함량 0.5% 이하의 선박 연료",
+    "sentence": "VLSFO prices at Singapore reached $650 per metric ton this week.",
+    "sentence_ko": "이번 주 싱가포르 VLSFO 가격은 미터톤당 650달러에 달했다."
+  },
+  {
+    "word": "Arrest of Vessel",
+    "pos": "n.",
+    "meaning": "선박 가압류 — 법원 명령에 의해 선박 출항을 정지시키는 법적 조치",
+    "sentence": "The vessel was arrested in Rotterdam over an unpaid bunker dispute.",
+    "sentence_ko": "선박은 미지급 연료 분쟁으로 인해 로테르담에서 가압류됐다."
+  },
+  {
+    "word": "Feeder Service",
+    "pos": "n.",
+    "meaning": "피더 서비스 — 소형 선박이 허브 항과 소규모 항구 사이를 잇는 연결 서비스",
+    "sentence": "The feeder vessel transported containers from Incheon to the transhipment hub in Busan.",
+    "sentence_ko": "피더선이 인천에서 부산의 환적 허브까지 컨테이너를 운송했다."
+  },
+  {
+    "word": "General Average",
+    "pos": "n.",
+    "meaning": "공동 해손 — 선박 위기 시 공동의 안전을 위한 희생 비용을 화주들이 분담하는 원칙",
+    "sentence": "General Average was declared after the engine failure, and all cargo owners contributed.",
+    "sentence_ko": "기관 고장 후 공동 해손이 선언됐고 모든 화주가 비용을 분담했다."
+  },
+  {
+    "word": "Hull and Machinery (H&M)",
+    "pos": "n.",
+    "meaning": "선체 및 기관 보험 — 선박 선체와 기계 장치에 대한 해상 보험",
+    "sentence": "The H&M insurance covered the repair costs after the vessel grounded.",
+    "sentence_ko": "선박이 좌초된 후 수리 비용은 선체 및 기관 보험으로 처리됐다."
+  },
+  {
+    "word": "EUA (EU Allowance)",
+    "pos": "n.",
+    "meaning": "유럽 탄소 배출권 — EU-ETS에서 CO₂ 1톤 배출 권리를 나타내는 거래 단위",
+    "sentence": "Shipowners must surrender EUAs equal to their verified CO₂ emissions by September 30.",
+    "sentence_ko": "선주는 검증된 CO₂ 배출량에 상응하는 EUA를 9월 30일까지 반납해야 한다."
+  }
+]

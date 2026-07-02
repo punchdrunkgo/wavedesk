@@ -21,6 +21,18 @@ WEEKDAY  = ["월","화","수","목","금","토","일"][NOW.weekday()]
 DATE_STR = NOW.strftime(f"%Y년 %m월 %d일 ({WEEKDAY})")
 TIME_STR = NOW.strftime("%H:%M")
 
+# 오늘의 해운 단어 (날짜 기반 고정 선택 — 매일 같은 단어, words.json 순환)
+def get_word_of_day():
+    try:
+        words_path = Path(__file__).parent / "words.json"
+        words = json.loads(words_path.read_text(encoding="utf-8"))
+        day_index = NOW.timetuple().tm_yday % len(words)  # 1년 365일 순환
+        return words[day_index]
+    except Exception:
+        return None
+
+WORD_OF_DAY = get_word_of_day()
+
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 HEADERS = {
@@ -406,9 +418,9 @@ SM_QUERIES = [
 ]
 
 def get_sm_news():
-    """SM그룹 전체 계열사 뉴스 - 최근 3일치, 매일 갱신, 최소 6개 목표"""
+    """SM그룹 전체 계열사 뉴스 - 최근 3일치, 매일 갱신, 유사 제목 중복 제거, 최소 6개"""
     items = []
-    cutoff = NOW - timedelta(days=3)  # 3일 이내
+    cutoff = NOW - timedelta(days=3)
 
     for q in SM_QUERIES:
         url = f"https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
@@ -430,20 +442,32 @@ def get_sm_news():
                     except Exception:
                         pass
                 is_ship = any(c in title for c in SM_SHIPPING)
-                category = "해운" if is_ship else "그룹"
                 if title and link:
                     items.append({
                         "title": title, "url": link,
-                        "label": lbl, "category": category
+                        "label": lbl,
+                        "category": "해운" if is_ship else "그룹"
                     })
         except Exception:
             pass
 
-    # 6개 미달 시 cutoff 완화해서 재수집 (7일로 확장)
-    if len(items) < 6:
+    # 중복 제거: 제목 앞 20자로 유사 기사 판별 (검색어별로 같은 기사가 중복 유입)
+    def title_key(t):
+        # 괄호/특수문자 제거 후 앞 20자
+        return re.sub(r"[^\w]", "", t)[:20]
+
+    seen_keys, result = set(), []
+    for n in items:
+        k = title_key(n["title"])
+        if k not in seen_keys:
+            seen_keys.add(k)
+            result.append(n)
+
+    # 6개 미달 시 7일로 확장
+    if len(result) < 6:
         cutoff2 = NOW - timedelta(days=7)
         for q in SM_QUERIES[:5]:
-            if len(items) >= 6:
+            if len(result) >= 6:
                 break
             url = f"https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
             try:
@@ -452,9 +476,9 @@ def get_sm_news():
                 for item in root.findall(".//item")[:10]:
                     title = (item.findtext("title") or "").strip()
                     link  = (item.findtext("link") or "").strip()
+                    pub   = (item.findtext("pubDate") or "").strip()
                     src_el = item.find("source")
                     lbl = src_el.text.strip() if src_el is not None else "뉴스"
-                    pub   = (item.findtext("pubDate") or "").strip()
                     if pub:
                         try:
                             pub_dt = datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z")
@@ -463,9 +487,11 @@ def get_sm_news():
                                 continue
                         except Exception:
                             pass
+                    k = title_key(title)
                     is_ship = any(c in title for c in SM_SHIPPING)
-                    if title and link:
-                        items.append({
+                    if title and link and k not in seen_keys:
+                        seen_keys.add(k)
+                        result.append({
                             "title": title, "url": link,
                             "label": lbl,
                             "category": "해운" if is_ship else "그룹"
@@ -473,15 +499,8 @@ def get_sm_news():
             except Exception:
                 pass
 
-    seen, result = set(), []
-    for n in items:
-        key = n["title"][:25]
-        if key not in seen:
-            seen.add(key)
-            result.append(n)
-
     result.sort(key=lambda x: 0 if x["category"] == "해운" else 1)
-    return result[:8]  # 최대 8개
+    return result[:8]
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -509,6 +528,22 @@ def dir_cls(chg):
 
 
 def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news):
+    # 오늘의 단어 박스 HTML
+    w = WORD_OF_DAY
+    if w:
+        word_html = f"""<div class="word-box">
+      <div class="word-header">📖 오늘의 해운 단어</div>
+      <div class="word-main">
+        <span class="word-term">{w['word']}</span>
+        <span class="word-pos">{w['pos']}</span>
+        <span class="word-meaning">{w['meaning']}</span>
+      </div>
+      <div class="word-sentence">"{w['sentence']}"</div>
+      <div class="word-sentence-ko">{w['sentence_ko']}</div>
+    </div>"""
+    else:
+        word_html = ""
+
     # 지수 카드 (종합지수 4개)
     idx_html = ""
     for key, d in indices.items():
@@ -640,10 +675,22 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 /* 헤더 */
 .header{{display:flex;justify-content:space-between;align-items:center;
          margin-bottom:.6rem;padding-bottom:.4rem;border-bottom:2px solid #2563eb}}
-.brand{{display:flex;align-items:baseline;gap:8px}}
+.brand{{display:flex;align-items:baseline;gap:8px;flex-shrink:0}}
 .brand-name{{font-size:1rem;font-weight:700;color:#1e3a8a;letter-spacing:-.5px}}
 .brand-sub{{font-size:.72rem;color:#6b7280}}
-.header-time{{font-size:.72rem;color:#9ca3af;text-align:right;line-height:1.5}}
+
+/* 오늘의 단어 박스 */
+.word-box{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
+           padding:.6rem .9rem;max-width:520px;text-align:right}}
+.word-header{{font-size:.65rem;font-weight:600;color:#9ca3af;
+              text-transform:uppercase;letter-spacing:.5px;margin-bottom:.25rem}}
+.word-main{{display:flex;align-items:baseline;gap:6px;justify-content:flex-end;
+            flex-wrap:wrap;margin-bottom:.2rem}}
+.word-term{{font-size:.95rem;font-weight:700;color:#1e3a8a}}
+.word-pos{{font-size:.68rem;color:#9ca3af;font-style:italic}}
+.word-meaning{{font-size:.75rem;color:#374151;font-weight:500}}
+.word-sentence{{font-size:.72rem;color:#6b7280;font-style:italic;margin-bottom:.1rem}}
+.word-sentence-ko{{font-size:.7rem;color:#9ca3af}}
 
 /* 섹션 라벨 */
 .sec-label{{font-size:.72rem;font-weight:600;text-transform:uppercase;
@@ -908,7 +955,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <span class="brand-name">⚓ WaveDesk</span>
       <span class="brand-sub">해운 아침 브리핑</span>
     </div>
-    <div class="header-time">{DATE_STR}<br>업데이트 {TIME_STR} KST</div>
+    {word_html}
   </div>
 
   <div class="sec-label">📊 해운 시황 지수</div>
