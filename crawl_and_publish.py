@@ -193,101 +193,55 @@ def get_indices():
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
 
-    # USD/KRW 환율 — 1순위: open.er-api.com (수치) + 네이버(등락)
+    # USD/KRW 환율 — frankfurter.app (ECB 기반, 날짜별 제공, API 키 불필요)
+    # 오늘 + 어제 환율 모두 가져와 전일비 직접 계산
     krw_val, krw_chg = None, ""
-
-    # 수치 우선 수집 (open.er-api.com)
     try:
-        r2 = requests.get("https://open.er-api.com/v6/latest/USD",
-                          headers=HEADERS, timeout=8)
-        d2 = r2.json()
-        today_krw = float(d2.get("rates", {}).get("KRW", 0))
-        if today_krw and 900 < today_krw < 2000:
-            krw_val = str(round(today_krw))
-            print(f"  [환율] open.er-api: {krw_val}")
+        today_str = NOW.strftime("%Y-%m-%d")
+        yest_str  = (NOW - timedelta(days=1)).strftime("%Y-%m-%d")
+        # 오늘 환율
+        r_today = requests.get(
+            f"https://api.frankfurter.app/{today_str}?from=USD&to=KRW",
+            headers=HEADERS, timeout=8)
+        d_today = r_today.json()
+        today_krw = float(d_today.get("rates", {}).get("KRW", 0))
+        if not today_krw or not (900 < today_krw < 2000):
+            raise ValueError(f"오늘 환율 이상: {today_krw}")
+        # 어제 환율
+        r_yest = requests.get(
+            f"https://api.frankfurter.app/{yest_str}?from=USD&to=KRW",
+            headers=HEADERS, timeout=8)
+        d_yest = r_yest.json()
+        yest_krw = float(d_yest.get("rates", {}).get("KRW", today_krw))
+        # 전일비 계산
+        diff = today_krw - yest_krw
+        pct  = round(diff / yest_krw * 100, 2)
+        krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
+        krw_val = str(round(today_krw))
+        print(f"  [환율] frankfurter: {krw_val} ({krw_chg}) 어제:{round(yest_krw)}")
     except Exception as e:
-        print(f"  [환율 API 오류] {e}")
-
-    # 네이버 금융 — 수치 + 전일비 파싱
-    try:
-        r = requests.get(
-            "https://finance.naver.com/marketindex/",
-            headers={**HEADERS, "Referer": "https://finance.naver.com/"},
-            timeout=10)
-        r.encoding = "utf-8"
-        txt_full = r.text
-
-        # 수치가 없으면 네이버에서도 수집
-        if not krw_val:
-            for pat in [r'"USD","KRW"[^}]*?"rate"\s*:\s*([\d.]+)',
-                        r'USD.*?(\d{3,4}\.\d+)',
-                        r'(1[3-5]\d{2})\.\d+']:
-                m = re.search(pat, txt_full)
-                if m:
-                    c = float(m.group(1))
-                    if 900 < c < 2000:
-                        krw_val = str(round(c))
-                        break
-
-        # 전일비: 네이버 HTML에서 ▲/▼ + 숫자 패턴
-        chg_patterns = [
-            r'USD.*?([▲▼])\s*([\d.]+)\s*\(',  # ▲ 7.00 (0.50%)
-            r'([▲▼])\s*([\d.]+)\s*\(([\d.]+)%\)',  # ▲ 7.00 (0.50%)
-            r'"change"\s*:\s*"?([+\-][\d.]+)"?',
-        ]
-        for pat in chg_patterns:
-            m = re.search(pat, txt_full)
-            if m and krw_val:
-                groups = m.groups()
-                if '▲' in groups[0]:
-                    sign = '+'
-                elif '▼' in groups[0]:
-                    sign = '-'
-                else:
-                    sign = groups[0] if groups[0] in ('+','-') else '+'
-                # 퍼센트가 직접 있는 경우
-                if len(groups) >= 3:
-                    krw_chg = f"{sign}{groups[2]}%"
-                else:
-                    diff = float(groups[1])
-                    pct = round(diff / float(krw_val) * 100, 2)
-                    krw_chg = f"{sign}{pct}%"
-                break
-
-        # BeautifulSoup 파싱도 시도
-        if not krw_chg:
-            soup2 = BeautifulSoup(txt_full, "lxml")
-            for sel in ["#exchangeList li", ".lst_exchange li"]:
-                for row in soup2.select(sel):
-                    t = row.get_text(" ", strip=True)
-                    if "미국" in t or "달러" in t:
-                        if not krw_val:
-                            nums = re.findall(r"[\d,]{4,}\.?\d*", t)
-                            for n in nums:
-                                c = float(n.replace(",",""))
-                                if 900 < c < 2000:
-                                    krw_val = str(round(c))
-                                    break
-                        diffs = re.findall(r"([+\-][\d.]+)", t)
-                        if diffs and krw_val:
-                            diff = float(diffs[0])
-                            pct = round(diff / float(krw_val) * 100, 2)
-                            krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
-                        break
-                if krw_val:
-                    break
-    except Exception as e:
-        print(f"  [환율 네이버 오류] {e}")
+        print(f"  [환율 오류] {e}")
+        # fallback: open.er-api.com (수치만, 전일비 없음)
+        try:
+            r2 = requests.get("https://open.er-api.com/v6/latest/USD",
+                              headers=HEADERS, timeout=8)
+            d2 = r2.json()
+            fb = float(d2.get("rates", {}).get("KRW", 0))
+            if fb and 900 < fb < 2000:
+                krw_val = str(round(fb))
+                print(f"  [환율 fallback] open.er-api: {krw_val}")
+        except Exception as e2:
+            print(f"  [환율 fallback 오류] {e2}")
 
     base["USD/KRW"] = {
-        "value": f"{int(float(krw_val)):,}" if krw_val else "—",
+        "value":  f"{int(krw_val):,}" if krw_val else "—",
         "change": krw_chg,
-        "label": "원달러환율",
-        "date": NOW.strftime("%Y-%m-%d"),
-        "url": "https://finance.naver.com/marketindex/",
-        "note": "매일 · 네이버금융"
+        "label":  "원달러환율",
+        "date":   NOW.strftime("%Y-%m-%d"),
+        "url":    "https://finance.naver.com/marketindex/",
+        "note":   "매일 · frankfurter.app(ECB)"
     }
-    print(f"  [환율] {base['USD/KRW']['value']} {base['USD/KRW']['change']}")
+    print(f"  [환율 최종] {base['USD/KRW']['value']} {base['USD/KRW']['change']}")
 
     return base, kdci_routes, kcci_routes, ncfi_routes
 
@@ -398,14 +352,30 @@ def get_news():
     for q, cnt in ko_core + ko_related:
         ko_all += fetch_google_news(q, "ko", "구글뉴스", "국내뉴스", cnt)
 
+    def extract_nouns(title):
+        """한글 2글자 이상 단어 집합 추출 (조사·접사 제외 근사치)"""
+        return set(w for w in re.findall(r"[가-힣]{2,}", title))
+
     def dedup_sort(items):
-        seen, result = set(), []
+        seen_prefix = set()
+        result = []
         for n in items:
-            key = n["title"][:25]
-            if key not in seen:
-                seen.add(key)
+            t = n["title"]
+            # 1차: 앞 20자 prefix 동일 → 확실한 중복
+            prefix = re.sub(r"[^가-힣a-zA-Z0-9]", "", t)[:20]
+            if prefix in seen_prefix:
+                continue
+            # 2차: 기존 기사들과 한글 명사 4개 이상 겹치면 유사 기사로 판단
+            nouns = extract_nouns(t)
+            is_dup = False
+            for existing in result:
+                overlap = nouns & extract_nouns(existing["title"])
+                if len(overlap) >= 4:
+                    is_dup = True
+                    break
+            if not is_dup:
+                seen_prefix.add(prefix)
                 result.append(n)
-        # 해운 관련을 위에, 나머지 아래
         result.sort(key=lambda x: 0 if is_shipping(x["title"]) else 1)
         return result
 
@@ -721,7 +691,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .wrap{{max-width:1100px;margin:0 auto;padding:.75rem 1.25rem}}
 
 /* 헤더 */
-.header{{display:flex;flex-direction:row;align-items:center;gap:12px;
+.header{{display:flex;flex-direction:row;align-items:center;gap:24px;
          margin-bottom:.75rem;padding-bottom:.55rem;border-bottom:2px solid #2563eb}}
 .header-left{{display:flex;flex-direction:column;gap:6px;flex-shrink:0;min-width:160px}}
 .brand{{display:flex;align-items:baseline;gap:8px;flex-shrink:0;padding-top:3px}}
@@ -730,7 +700,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 /* 오늘의 단어 박스 */
 .word-box{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
-           padding:.45rem 1rem;flex:1;min-width:0;margin-left:auto}}
+           padding:.5rem 1.1rem;flex:1;min-width:0;margin-left:auto}}
 .word-header{{font-size:.62rem;font-weight:600;color:#9ca3af;
               text-transform:uppercase;letter-spacing:.5px;margin-bottom:.15rem}}
 .word-main{{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:.1rem}}
