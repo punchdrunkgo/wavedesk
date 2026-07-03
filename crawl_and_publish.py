@@ -193,45 +193,42 @@ def get_indices():
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
 
-    # USD/KRW 환율 — frankfurter.app (ECB 기반, 날짜별 제공, API 키 불필요)
-    # 오늘 + 어제 환율 모두 가져와 전일비 직접 계산
+    # USD/KRW 환율 — open.er-api.com + rate_cache.json 전일비 계산
+    # rate_cache.json: {"date": "YYYY-MM-DD", "krw": 1234.56} 형태로 레포에 저장
     krw_val, krw_chg = None, ""
+    cache_path = Path(__file__).parent / "rate_cache.json"
     try:
-        today_str = NOW.strftime("%Y-%m-%d")
-        yest_str  = (NOW - timedelta(days=1)).strftime("%Y-%m-%d")
-        # 오늘 환율
-        r_today = requests.get(
-            f"https://api.frankfurter.app/{today_str}?from=USD&to=KRW",
-            headers=HEADERS, timeout=8)
-        d_today = r_today.json()
-        today_krw = float(d_today.get("rates", {}).get("KRW", 0))
+        r2 = requests.get("https://open.er-api.com/v6/latest/USD",
+                          headers=HEADERS, timeout=8)
+        d2 = r2.json()
+        today_krw = float(d2.get("rates", {}).get("KRW", 0))
         if not today_krw or not (900 < today_krw < 2000):
-            raise ValueError(f"오늘 환율 이상: {today_krw}")
-        # 어제 환율
-        r_yest = requests.get(
-            f"https://api.frankfurter.app/{yest_str}?from=USD&to=KRW",
-            headers=HEADERS, timeout=8)
-        d_yest = r_yest.json()
-        yest_krw = float(d_yest.get("rates", {}).get("KRW", today_krw))
-        # 전일비 계산
-        diff = today_krw - yest_krw
-        pct  = round(diff / yest_krw * 100, 2)
-        krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
+            raise ValueError(f"환율 이상값: {today_krw}")
         krw_val = str(round(today_krw))
-        print(f"  [환율] frankfurter: {krw_val} ({krw_chg}) 어제:{round(yest_krw)}")
+        # 전일비: cache 파일에서 어제 환율 불러와 비교
+        try:
+            cache = json.loads(cache_path.read_text(encoding="utf-8"))
+            prev_krw = float(cache.get("krw", today_krw))
+            prev_date = cache.get("date", "")
+            if prev_date != NOW.strftime("%Y-%m-%d"):  # 오늘 날짜가 아닐 때만 비교
+                diff = today_krw - prev_krw
+                pct  = round(diff / prev_krw * 100, 2)
+                krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
+                print(f"  [환율] {krw_val} ({krw_chg}) prev:{round(prev_krw)} at {prev_date}")
+            else:
+                print(f"  [환율] {krw_val} (캐시 날짜 동일, 전일비 생략)")
+        except Exception as ce:
+            print(f"  [환율 캐시 읽기 오류] {ce}")
+        # 오늘 환율을 cache에 저장
+        try:
+            cache_path.write_text(
+                json.dumps({"date": NOW.strftime("%Y-%m-%d"), "krw": today_krw},
+                           ensure_ascii=False),
+                encoding="utf-8")
+        except Exception as we:
+            print(f"  [환율 캐시 쓰기 오류] {we}")
     except Exception as e:
         print(f"  [환율 오류] {e}")
-        # fallback: open.er-api.com (수치만, 전일비 없음)
-        try:
-            r2 = requests.get("https://open.er-api.com/v6/latest/USD",
-                              headers=HEADERS, timeout=8)
-            d2 = r2.json()
-            fb = float(d2.get("rates", {}).get("KRW", 0))
-            if fb and 900 < fb < 2000:
-                krw_val = str(round(fb))
-                print(f"  [환율 fallback] open.er-api: {krw_val}")
-        except Exception as e2:
-            print(f"  [환율 fallback 오류] {e2}")
 
     base["USD/KRW"] = {
         "value":  f"{int(krw_val):,}" if krw_val else "—",
@@ -239,7 +236,7 @@ def get_indices():
         "label":  "원달러환율",
         "date":   NOW.strftime("%Y-%m-%d"),
         "url":    "https://finance.naver.com/marketindex/",
-        "note":   "매일 · frankfurter.app(ECB)"
+        "note":   "매일 · open.er-api"
     }
     print(f"  [환율 최종] {base['USD/KRW']['value']} {base['USD/KRW']['change']}")
 
@@ -263,7 +260,7 @@ def fetch_google_news(query, lang, source, label, max_items=8):
         root = ET.fromstring(r.content)
         today = NOW.date()
         yesterday = (NOW - timedelta(days=1)).date()
-        cutoff = NOW.replace(hour=0, minute=0, second=0) - timedelta(hours=12)  # 어제 오후 12시
+        cutoff = NOW.replace(hour=0, minute=0, second=0) - timedelta(hours=48)  # 2일 전 자정
         for item in root.findall(".//item")[:max_items * 2]:
             title = (item.findtext("title") or "").strip()
             link  = (item.findtext("link") or "").strip()
