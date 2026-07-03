@@ -367,7 +367,7 @@ def get_news():
             is_dup = False
             for existing in result:
                 overlap = nouns & extract_nouns(existing["title"])
-                if len(overlap) >= 4:
+                if len(overlap) >= 3:
                     is_dup = True
                     break
             if not is_dup:
@@ -453,28 +453,26 @@ def get_sm_news():
             pass
 
     # 중복 제거: 제목 앞 20자로 유사 기사 판별 (검색어별로 같은 기사가 중복 유입)
-    def title_key(t):
-        # 특수문자·공백 제거 후 앞 15자 (더 짧게 잘라 유사 기사 더 잘 잡음)
-        return re.sub(r"[^\w]", "", t)[:15]
+    def sm_nouns(t):
+        # 언론사명(-뉴스1, -프라임경제 등) 제거 후 2글자 이상 한글 명사 추출
+        t = re.sub(r"[-–—]\s*[가-힣a-zA-Z0-9]+$", "", t).strip()
+        return set(w for w in re.findall(r"[가-힣]{2,}", t))
 
-    def title_words(t):
-        # 2글자 이상 단어 집합 추출 (핵심 명사 겹침 비교용)
-        return set(w for w in re.sub(r"[^\w\s]","",t).split() if len(w) >= 2)
-
-    seen_keys, result = set(), []
+    seen_prefix, result = set(), []
     for n in items:
-        k = title_key(n["title"])
-        words = title_words(n["title"])
-        # 이미 추가된 기사들과 핵심 단어 3개 이상 겹치면 중복으로 판단
+        t = n["title"]
+        prefix = re.sub(r"[^가-힣a-zA-Z0-9]", "", t)[:15]
+        if prefix in seen_prefix:
+            continue
+        nouns = sm_nouns(t)
         is_dup = False
         for existing in result:
-            existing_words = title_words(existing["title"])
-            overlap = len(words & existing_words)
-            if overlap >= 3 or k in seen_keys:
+            overlap = nouns & sm_nouns(existing["title"])
+            if len(overlap) >= 3:
                 is_dup = True
                 break
         if not is_dup:
-            seen_keys.add(k)
+            seen_prefix.add(prefix)
             result.append(n)
 
     # 6개 미달 시 7일로 확장
