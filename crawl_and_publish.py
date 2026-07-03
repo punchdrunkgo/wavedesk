@@ -193,79 +193,101 @@ def get_indices():
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
 
-    # USD/KRW 환율 — 네이버 금융 + open.er-api.com fallback
+    # USD/KRW 환율 — 1순위: open.er-api.com (수치) + 네이버(등락)
     krw_val, krw_chg = None, ""
+
+    # 수치 우선 수집 (open.er-api.com)
+    try:
+        r2 = requests.get("https://open.er-api.com/v6/latest/USD",
+                          headers=HEADERS, timeout=8)
+        d2 = r2.json()
+        today_krw = float(d2.get("rates", {}).get("KRW", 0))
+        if today_krw and 900 < today_krw < 2000:
+            krw_val = str(round(today_krw))
+            print(f"  [환율] open.er-api: {krw_val}")
+    except Exception as e:
+        print(f"  [환율 API 오류] {e}")
+
+    # 네이버 금융 — 수치 + 전일비 파싱
     try:
         r = requests.get(
             "https://finance.naver.com/marketindex/",
-            headers={**HEADERS, "Referer": "https://finance.naver.com/",
-                     "Accept": "text/html,application/xhtml+xml"},
+            headers={**HEADERS, "Referer": "https://finance.naver.com/"},
             timeout=10)
         r.encoding = "utf-8"
-        soup2 = BeautifulSoup(r.text, "lxml")
+        txt_full = r.text
 
-        for sel in ["#exchangeList li", ".lst_exchange li",
-                    ".market1 tbody tr", ".tbl_exchange tbody tr"]:
-            for row in soup2.select(sel):
-                txt = row.get_text(" ", strip=True)
-                if "미국" in txt or "달러" in txt or "USD" in txt:
-                    nums = re.findall(r"[\d,]{3,}\.\d+", txt)
-                    if not nums:
-                        nums = re.findall(r"[\d,]{4,}", txt)
-                    if nums:
-                        candidate = float(nums[0].replace(",",""))
-                        if 900 < candidate < 2000:
-                            krw_val = str(round(candidate))
-                    diffs = re.findall(r"([\+\-][\d,]+\.?\d*)", txt)
-                    if diffs and krw_val:
-                        diff = float(diffs[0].replace(",",""))
-                        pct = round(diff / float(krw_val) * 100, 2)
-                        krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
-                    break
-            if krw_val:
+        # 수치가 없으면 네이버에서도 수집
+        if not krw_val:
+            for pat in [r'"USD","KRW"[^}]*?"rate"\s*:\s*([\d.]+)',
+                        r'USD.*?(\d{3,4}\.\d+)',
+                        r'(1[3-5]\d{2})\.\d+']:
+                m = re.search(pat, txt_full)
+                if m:
+                    c = float(m.group(1))
+                    if 900 < c < 2000:
+                        krw_val = str(round(c))
+                        break
+
+        # 전일비: 네이버 HTML에서 ▲/▼ + 숫자 패턴
+        chg_patterns = [
+            r'USD.*?([▲▼])\s*([\d.]+)\s*\(',  # ▲ 7.00 (0.50%)
+            r'([▲▼])\s*([\d.]+)\s*\(([\d.]+)%\)',  # ▲ 7.00 (0.50%)
+            r'"change"\s*:\s*"?([+\-][\d.]+)"?',
+        ]
+        for pat in chg_patterns:
+            m = re.search(pat, txt_full)
+            if m and krw_val:
+                groups = m.groups()
+                if '▲' in groups[0]:
+                    sign = '+'
+                elif '▼' in groups[0]:
+                    sign = '-'
+                else:
+                    sign = groups[0] if groups[0] in ('+','-') else '+'
+                # 퍼센트가 직접 있는 경우
+                if len(groups) >= 3:
+                    krw_chg = f"{sign}{groups[2]}%"
+                else:
+                    diff = float(groups[1])
+                    pct = round(diff / float(krw_val) * 100, 2)
+                    krw_chg = f"{sign}{pct}%"
                 break
 
-        if not krw_val:
-            m = re.search(r"USD[^\d]{0,20}(1[,.]?\d{3}\.?\d*)", r.text)
-            if m:
-                candidate = float(m.group(1).replace(",",""))
-                if 900 < candidate < 2000:
-                    krw_val = str(round(candidate))
+        # BeautifulSoup 파싱도 시도
+        if not krw_chg:
+            soup2 = BeautifulSoup(txt_full, "lxml")
+            for sel in ["#exchangeList li", ".lst_exchange li"]:
+                for row in soup2.select(sel):
+                    t = row.get_text(" ", strip=True)
+                    if "미국" in t or "달러" in t:
+                        if not krw_val:
+                            nums = re.findall(r"[\d,]{4,}\.?\d*", t)
+                            for n in nums:
+                                c = float(n.replace(",",""))
+                                if 900 < c < 2000:
+                                    krw_val = str(round(c))
+                                    break
+                        diffs = re.findall(r"([+\-][\d.]+)", t)
+                        if diffs and krw_val:
+                            diff = float(diffs[0])
+                            pct = round(diff / float(krw_val) * 100, 2)
+                            krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
+                        break
+                if krw_val:
+                    break
     except Exception as e:
         print(f"  [환율 네이버 오류] {e}")
 
-    # fallback: open.er-api.com (오늘+어제 비교)
-    if not krw_val:
-        try:
-            r2 = requests.get("https://open.er-api.com/v6/latest/USD",
-                              headers=HEADERS, timeout=8)
-            d2 = r2.json()
-            today_krw = d2.get("rates", {}).get("KRW", 0)
-            if today_krw:
-                krw_val = str(round(today_krw))
-                # 어제 환율
-                r3 = requests.get(
-                    f"https://open.er-api.com/v6/history/USD/{(NOW-timedelta(days=1)).strftime('%Y/%m/%d')}",
-                    headers=HEADERS, timeout=8)
-                d3 = r3.json()
-                prev_krw = d3.get("rates", {}).get("KRW", today_krw)
-                if prev_krw:
-                    diff = today_krw - prev_krw
-                    pct = round(diff / prev_krw * 100, 2)
-                    krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
-        except Exception as e2:
-            print(f"  [환율 fallback 오류] {e2}")
-
     base["USD/KRW"] = {
-        "value": f"{int(krw_val):,}" if krw_val else "—",
+        "value": f"{int(float(krw_val)):,}" if krw_val else "—",
         "change": krw_chg,
         "label": "원달러환율",
         "date": NOW.strftime("%Y-%m-%d"),
         "url": "https://finance.naver.com/marketindex/",
         "note": "매일 · 네이버금융"
     }
-    if not krw_val:
-        print("  [환율 경고] 모든 소스 실패")
+    print(f"  [환율] {base['USD/KRW']['value']} {base['USD/KRW']['change']}")
 
     return base, kdci_routes, kcci_routes, ncfi_routes
 
@@ -690,8 +712,8 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WaveDesk · 해운 아침 브리핑</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚓</text></svg>">
+<title>KLCSM Desk · 해운 브리핑</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚢</text></svg>">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;
@@ -960,6 +982,28 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
             color:#fff;font-size:.62rem;font-weight:700;flex-shrink:0}}
 .guide-note{{font-size:.7rem;color:#9ca3af;margin-top:.25rem}}
 
+/* 점심 CTA + 섹션 */
+.lunch-cta{{font-size:.75rem;padding:4px 12px;border-radius:980px;
+            border:1.5px solid #f97316;background:#fff7ed;color:#ea580c;
+            cursor:pointer;font-family:inherit;font-weight:600;margin-left:.75rem}}
+.lunch-cta:hover{{background:#ea580c;color:#fff}}
+.lunch-section{{display:none;margin:1rem 0;border-radius:12px;overflow:hidden;border:2px solid #fed7aa}}
+.lunch-section.open{{display:block}}
+.lunch-header{{background:#ea580c;color:#fff;padding:.65rem 1.1rem;
+               font-size:.85rem;font-weight:700;cursor:pointer;
+               display:flex;justify-content:space-between;align-items:center}}
+.lunch-row{{cursor:pointer;padding:.6rem 1.1rem;font-size:.8rem;
+            display:flex;justify-content:space-between;align-items:center;
+            border-bottom:1px solid rgba(0,0,0,.06);font-weight:600}}
+.lunch-row:last-child{{border-bottom:none}}
+.lunch-row-arrow{{font-size:.72rem;color:#6b7280;transition:transform .2s}}
+.lunch-row.open .lunch-row-arrow{{transform:rotate(90deg)}}
+.lunch-content{{display:none;padding:.55rem 1.1rem .7rem;font-size:.78rem;line-height:1.7}}
+.lunch-content.open{{display:block}}
+.lunch-r1{{background:#fff7ed;color:#9a3412}}.lunch-r2{{background:#fef3c7;color:#92400e}}
+.lunch-r3{{background:#ecfdf5;color:#065f46}}.lunch-r4{{background:#eff6ff;color:#1e40af}}
+.lunch-r5{{background:#fdf4ff;color:#6b21a8}}.lunch-r6{{background:#fff1f2;color:#9f1239}}
+
 .footer{{font-size:.72rem;color:#d1d5db;text-align:center;
          padding-top:.75rem;border-top:1px solid #e5e7eb}}
 
@@ -977,9 +1021,12 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
   <div class="header">
     <div class="brand">
-      <span class="brand-name">⚓ WaveDesk</span>
-      <span class="brand-sub">해운 아침 브리핑</span>
+      <span class="brand-name">🚢 KLCSM Desk</span>
+      <span class="brand-sub">해운 브리핑</span>
     </div>
+    <button class="lunch-cta" onclick="document.getElementById('lunch-section').scrollIntoView({{behavior:'smooth'}});document.getElementById('lunch-section').classList.add('open')">
+      🍱 점심 메뉴 정하기
+    </button>
     {word_html}
   </div>
 
@@ -1126,10 +1173,38 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <div class="eua-note">IMO DCS·EU-ETS·FuelEU·EUA 선물 만기일 기준 (KST 자정 기준)</div>
     </div>
 
+    <!-- 점심 메뉴 섹션 -->
+    <div class="lunch-section" id="lunch-section">
+      <div class="lunch-header" onclick="this.parentElement.classList.toggle('open')">
+        🍱 점심 메뉴 정하기 <span>▾</span>
+      </div>
+      <div class="lunch-row lunch-r1" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">
+        🎲 오늘의 추천 메뉴 (랜덤 뽑기) <span class="lunch-row-arrow">▶</span>
+      </div>
+      <div class="lunch-content lunch-r1">
+        <div id="lunchRandom" style="font-size:1rem;font-weight:700;padding:.3rem 0"></div>
+        <button onclick="pickLunch()" style="margin-top:.4rem;padding:4px 14px;border-radius:6px;border:1px solid #ea580c;background:#fff;color:#ea580c;cursor:pointer;font-family:inherit;font-size:.75rem">다시 뽑기 🎲</button>
+      </div>
+      <div class="lunch-row lunch-r2" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">
+        🗳️ 팀원 투표하기 <span class="lunch-row-arrow">▶</span>
+      </div>
+      <div class="lunch-content lunch-r2">
+        <div id="lunchVotes" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.5rem"></div>
+        <div style="font-size:.72rem;color:#92400e">※ 이 브라우저에만 저장됩니다</div>
+      </div>
+      <div class="lunch-row lunch-r3" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">
+        📍 근처 맛집 찾기 <span class="lunch-row-arrow">▶</span>
+      </div>
+      <div class="lunch-content lunch-r3">
+        <a href="https://map.naver.com/p/search/화성시+점심" target="_blank" style="color:#065f46;text-decoration:underline">네이버지도 — 근처 음식점 검색 ↗</a><br>
+        <a href="https://www.google.com/maps/search/점심+화성+경기" target="_blank" style="color:#065f46;text-decoration:underline">Google Maps 검색 ↗</a>
+      </div>
+    </div>
+
     <!-- 안내 박스 - 접기 가능 -->
     <div class="guide-collapse">
       <button class="guide-toggle" id="guideToggleBtn">
-        💡 WaveDesk를 크롬 시작 페이지로 설정하는 방법
+        💡 KLCSM Desk를 크롬 시작 페이지로 설정하는 방법
         <span class="guide-toggle-arrow">▾</span>
       </button>
       <div class="guide-collapse-body" id="guideCollapseBody">
@@ -1140,13 +1215,13 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
           <div class="guide-step"><span class="guide-num">4</span><b>특정 페이지 또는 페이지 집합 열기</b> 선택</div>
           <div class="guide-step"><span class="guide-num">5</span><b>새 페이지 추가</b> 후 이 페이지 URL 입력 → 저장</div>
         </div>
-        <div class="guide-note">크롬을 열 때마다 WaveDesk가 자동으로 표시됩니다. 뉴스와 지수는 매일 08:00 KST에 자동 업데이트됩니다.</div>
+        <div class="guide-note">크롬을 열 때마다 KLCSM Desk가 자동으로 표시됩니다. 뉴스와 지수는 매일 08:00 KST에 자동 업데이트됩니다.</div>
       </div>
     </div>
   </div>
 
   <div class="footer">
-    {DATE_STR} · {TIME_STR} KST &nbsp;|&nbsp; WaveDesk · 매일 08:00 자동 업데이트 · GitHub Pages
+    {DATE_STR} · {TIME_STR} KST &nbsp;|&nbsp; KLCSM Desk · 매일 08:00 자동 업데이트 · GitHub Pages
   </div>
 
 </div>
@@ -1319,7 +1394,48 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
   // ── SM뉴스 그리드 항상 2열 고정 (cols3 제거)
 
-  // ── 안내박스 접기 토글
+  // ── 점심 메뉴 랜덤 뽑기
+  const LUNCH_MENUS = ['한식 백반','삼겹살','순두부찌개','된장찌개','비빔밥','냉면','국밥','칼국수','짜장면','짬뽕','돈까스','파스타','샌드위치','초밥','샐러드','피자','햄버거','곱창','닭갈비','부대찌개'];
+  function pickLunch() {{
+    const el = document.getElementById('lunchRandom');
+    if (el) el.textContent = LUNCH_MENUS[Math.floor(Math.random()*LUNCH_MENUS.length)] + ' 🍽️';
+  }}
+  pickLunch();
+
+  // 투표 버튼 생성
+  const votesEl = document.getElementById('lunchVotes');
+  const VOTE_KEY = 'klcsm_lunch_votes';
+  function getVotes() {{ try {{ return JSON.parse(localStorage.getItem(VOTE_KEY)) || {{}}; }} catch(e) {{ return {{}}; }} }}
+  function saveVotes(v) {{ localStorage.setItem(VOTE_KEY, JSON.stringify(v)); }}
+  function renderVotes() {{
+    if (!votesEl) return;
+    const v = getVotes();
+    votesEl.innerHTML = LUNCH_MENUS.slice(0,8).map(m =>
+      `<button onclick="castVote('${{m}}')" style="padding:3px 10px;border-radius:5px;border:1px solid #d97706;background:#fef3c7;color:#92400e;cursor:pointer;font-family:inherit;font-size:.75rem">
+        ${{m}} ${{v[m] ? '('+v[m]+')' : ''}}
+      </button>`
+    ).join('');
+  }}
+  function castVote(menu) {{
+    const v = getVotes(); v[menu] = (v[menu]||0)+1; saveVotes(v); renderVotes();
+  }}
+  renderVotes();
+
+  // ── 3번: 전체 뉴스 중복 제거 (국내↔해외 포함)
+  (function() {{
+    const allRows = document.querySelectorAll('.news-row');
+    const seen = new Set();
+    allRows.forEach(row => {{
+      const titleEl = row.querySelector('.news-title');
+      if (!titleEl) return;
+      const key = titleEl.textContent.replace(/[^\\w가-힣]/g,'').slice(0,15);
+      if (seen.has(key)) {{
+        row.style.display = 'none';
+      }} else {{
+        seen.add(key);
+      }}
+    }});
+  }})();
   const guideBtn = document.getElementById('guideToggleBtn');
   const guideBody = document.getElementById('guideCollapseBody');
   if (guideBtn && guideBody) {{
