@@ -3,193 +3,991 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WaveDesk · 해운 아침 브리핑</title>
+<title>KLCSM Desk · 해운 브리핑</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚢</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;
       background:#f0f4f8;color:#1a1a2e;min-height:100vh}
-.container{max-width:960px;margin:0 auto;padding:2rem 1.25rem}
+.wrap{max-width:1100px;margin:0 auto;padding:.75rem 1.25rem}
 
 /* 헤더 */
-.header{display:flex;justify-content:space-between;align-items:flex-end;
-         margin-bottom:1.75rem;padding-bottom:1rem;
-         border-bottom:2px solid #2563eb}
-.brand{display:flex;align-items:baseline;gap:10px}
-.brand-name{font-size:1.5rem;font-weight:700;color:#1e3a8a;letter-spacing:-0.5px}
-.brand-sub{font-size:0.8rem;color:#6b7280;font-weight:400}
-.header-meta{text-align:right;font-size:0.78rem;color:#9ca3af;line-height:1.6}
+.header{display:flex;justify-content:space-between;align-items:center;
+         margin-bottom:.6rem;padding-bottom:.4rem;border-bottom:2px solid #2563eb}
+.brand{display:flex;align-items:baseline;gap:8px;flex-shrink:0}
+.brand-name{font-size:1rem;font-weight:700;color:#1e3a8a;letter-spacing:-.5px}
+.brand-sub{font-size:.72rem;color:#6b7280}
 
-/* 시황 지수 */
-.section-label{font-size:0.78rem;font-weight:600;text-transform:uppercase;
-                letter-spacing:.8px;color:#6b7280;margin-bottom:.6rem}
-.idx-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:2rem}
+/* 오늘의 단어 박스 */
+.word-box{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
+           padding:.45rem 1rem;flex:1;max-width:680px;margin-left:1rem}
+.word-header{font-size:.62rem;font-weight:600;color:#9ca3af;
+              text-transform:uppercase;letter-spacing:.5px;margin-bottom:.15rem}
+.word-main{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:.1rem}
+.word-term{font-size:.88rem;font-weight:700;color:#1e3a8a}
+.word-pos{font-size:.65rem;color:#9ca3af;font-style:italic}
+.word-meaning{font-size:.72rem;color:#374151;font-weight:500}
+.word-sentence{font-size:.7rem;color:#6b7280;font-style:italic;margin-bottom:.05rem}
+.word-sentence-ko{font-size:.68rem;color:#9ca3af}
+
+/* 섹션 라벨 */
+.sec-label{font-size:.72rem;font-weight:600;text-transform:uppercase;
+            letter-spacing:.8px;color:#6b7280;margin-bottom:.5rem}
+
+/* 지수 카드 (4열) */
+.idx-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:.5rem}
 .idx-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
-           padding:.9rem 1.1rem;position:relative}
-.idx-label{font-size:.72rem;color:#9ca3af;margin-bottom:1px}
+           padding:.7rem 1rem;text-decoration:none;color:inherit;
+           transition:border-color .15s;display:block}
+.idx-card:hover{border-color:#2563eb}
+.idx-card.idx-unavail{opacity:.45}
+.idx-label{font-size:.7rem;color:#9ca3af;margin-bottom:1px}
 .idx-key{font-size:.7rem;font-weight:700;color:#6b7280;margin-bottom:.3rem}
-.idx-val{font-size:1.45rem;font-weight:700;color:#111827}
-.idx-chg{font-size:.78rem;margin-top:.25rem}
+.idx-val{font-size:1.5rem;font-weight:700;color:#111827}
+.idx-chg{font-size:.78rem;margin-top:.3rem}
+.idx-date{font-size:.68rem;color:#9ca3af;margin-top:.2rem}
+.idx-note{font-size:.65rem;color:#d1d5db;margin-top:.1rem}
 .up{color:#dc2626}.dn{color:#2563eb}.neu{color:#9ca3af}
 
+/* 아코디언 (3열 드롭다운) */
+.acc-wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:.75rem}
+.accordion{background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}
+.acc-header{display:flex;justify-content:space-between;align-items:center;
+             padding:.5rem .75rem;background:#f8faff;border-bottom:1px solid #e5e7eb}
+.acc-toggle{background:none;border:none;cursor:pointer;font-size:.78rem;
+             font-weight:600;color:#374151;font-family:inherit;padding:0;text-align:left}
+.acc-toggle:hover{color:#2563eb}
+.acc-arrow{transition:transform .2s;color:#9ca3af;font-size:.72rem;margin-left:3px}
+.acc-toggle.open .acc-arrow{transform:rotate(180deg)}
+.acc-link-btn{font-size:.7rem;padding:2px 8px;border:1px solid #2563eb;
+               border-radius:4px;color:#2563eb;text-decoration:none;white-space:nowrap}
+.acc-link-btn:hover{background:#2563eb;color:#fff}
+.acc-body{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.acc-body.open{max-height:300px;overflow-y:auto}
+.acc-rows{display:flex;flex-direction:column}
+.acc-row{display:flex;justify-content:space-between;align-items:center;
+          padding:.32rem .75rem;border-bottom:1px solid #f3f4f6}
+.acc-row:last-child{border-bottom:none}
+.acc-route{font-size:.72rem;color:#6b7280}
+.acc-val{font-size:.75rem;font-weight:600;color:#111827}
+.acc-chg{font-size:.7rem;font-weight:500;margin-left:5px}
+.acc-chg.up{color:#dc2626}.acc-chg.dn{color:#2563eb}.acc-chg.neu{color:#9ca3af}
+
+/* 지수 탭 (운임지수/연료환경/통계) */
+.idx-tab-bar{display:flex;gap:5px;margin-bottom:7px}
+.idx-tab{padding:4px 13px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;
+          font-size:.75rem;font-weight:600;color:#6b7280;cursor:pointer;font-family:inherit}
+.idx-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.idx-tab:hover:not(.active){border-color:#2563eb;color:#2563eb}
+.idx-tab-panel{display:none;flex-wrap:wrap;gap:7px;margin-bottom:1.25rem}
+.idx-tab-panel.active{display:flex}
+.idx-link-btn{font-size:.72rem;padding:4px 10px;border-radius:5px;
+               border:1px solid #e5e7eb;background:#fff;color:#374151;
+               text-decoration:none;transition:border-color .15s;white-space:nowrap}
+.idx-link-btn:hover{border-color:#2563eb;color:#1e3a8a}
+
 /* 뉴스 */
-.news-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:2rem}
-.news-source-block{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}
-.source-header{display:flex;align-items:center;gap:8px;
-                padding:.65rem 1rem;border-bottom:1px solid #f3f4f6}
-.source-flag{font-size:.9rem}
-.source-name{font-size:.75rem;font-weight:600;padding:2px 8px;
-              border-radius:4px;text-decoration:none;letter-spacing:.2px}
-.source-name:hover{opacity:.8}
-.news-rows{display:flex;flex-direction:column}
+.news-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem}
+.news-col{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}
+.news-col-header{display:flex;align-items:center;gap:6px;padding:.65rem 1rem;
+                  background:#f8faff;border-bottom:1px solid #e5e7eb;
+                  font-size:.8rem;font-weight:600;color:#1e3a8a}
+.news-inner{display:flex;flex-direction:column;max-height:200px;overflow-y:auto}
+.src-mini-header{padding:.3rem 1rem;background:#f9fafb;
+                  font-size:.68rem;color:#9ca3af;border-bottom:1px solid #f3f4f6}
 .news-row{display:flex;align-items:center;justify-content:space-between;
-           padding:.55rem 1rem;border-bottom:1px solid #f9fafb;
-           text-decoration:none;color:inherit;gap:8px;
-           transition:background .12s}
+           padding:.5rem 1rem;border-bottom:1px solid #f9fafb;
+           text-decoration:none;color:inherit;gap:8px;transition:background .12s}
 .news-row:last-child{border-bottom:none}
-.news-row:hover{background:#f8faff}
-.news-title{font-size:.82rem;line-height:1.45;color:#111827;flex:1}
-.news-link-icon{font-size:.8rem;color:#9ca3af;flex-shrink:0}
+.news-row:hover{background:#f0f5ff}
+.news-title{font-size:.81rem;line-height:1.45;color:#111827;flex:1}
+.news-src-tag{font-size:.67rem;font-weight:600;color:#e65100;background:#fff3e0;
+               padding:1px 5px;border-radius:3px;margin-right:5px;
+               white-space:nowrap;flex-shrink:0}
+.news-arrow{font-size:.8rem;color:#9ca3af;flex-shrink:0}
 
-/* 바로가기 */
-.links-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
-.link-card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;
-            padding:.75rem 1rem;text-decoration:none;color:inherit;
-            transition:border-color .15s}
-.link-card:hover{border-color:#2563eb}
-.link-card .lc-name{font-size:.82rem;font-weight:600;color:#111827}
-.link-card .lc-sub{font-size:.72rem;color:#9ca3af;margin-top:2px}
+/* 사이트 섹션 */
+.sites-section{margin-bottom:1rem}
 
-/* 푸터 */
+/* ＋ 뱃지 */
+.pin-dot{display:inline-flex;align-items:center;justify-content:center;
+          width:16px;height:16px;border-radius:50%;
+          background:#e5e7eb;color:#6b7280;font-size:.6rem;font-weight:700;
+          cursor:pointer;margin-left:4px;line-height:1;
+          transition:background .12s,color .12s;
+          user-select:none;vertical-align:middle;flex-shrink:0}
+.pin-dot:hover{background:#0071e3;color:#fff}
+.pin-dot.pinned{background:#0071e3;color:#fff}
+
+/* 사이트 그룹 */
+.site-group-label{font-size:.68rem;font-weight:600;color:#86868b;
+                   text-transform:uppercase;letter-spacing:.6px;
+                   margin:1rem 0 .4rem;padding-left:2px}
+.site-link-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.25rem}
+.site-link-item{display:inline-flex;align-items:center;
+                 font-size:.78rem;padding:5px 11px;border-radius:980px;
+                 border:1px solid #d2d2d7;background:#fff;color:#1d1d1f;
+                 cursor:default;transition:border-color .12s,background .12s;
+                 font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Noto Sans KR',sans-serif;
+                 line-height:1.4}
+.site-link-item a{color:inherit;text-decoration:none;pointer-events:all;cursor:pointer}
+.site-link-item:hover{border-color:#0071e3;background:#f5f5f7}
+.site-link-item.dragging{opacity:.4}
+
+/* 내 사이트 */
+.my-site-section{margin-bottom:.75rem}
+.my-site-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.my-site-label{font-size:.82rem;font-weight:600;color:#1d1d1f;
+                font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Noto Sans KR',sans-serif}
+.my-site-hint{font-size:.67rem;color:#86868b;flex:1}
+.my-site-grid{display:flex;flex-wrap:wrap;gap:6px;min-height:40px;
+               padding:8px 10px;border-radius:12px;
+               border:1.5px dashed #d2d2d7;background:#fafafa;
+               margin-bottom:.5rem;transition:border-color .12s,background .12s}
+.my-site-grid.drag-active{border-color:#0071e3;background:#f0f6ff}
+.my-empty{font-size:.73rem;color:#86868b;align-self:center;padding:.25rem 0}
+.my-site-item{display:inline-flex;align-items:center;gap:5px;
+               font-size:.78rem;padding:5px 12px;border-radius:7px;
+               border:none;background:#0071e3;color:#fff;
+               cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Noto Sans KR',sans-serif;
+               line-height:1.4;text-decoration:none;
+               transition:background .12s}
+.my-site-item:hover{background:#0077ed}
+.my-site-item a{color:inherit;text-decoration:none;pointer-events:all}
+.my-del-btn{font-size:.65rem;color:rgba(255,255,255,.7);background:none;border:none;
+             cursor:pointer;padding:0;line-height:1;pointer-events:all}
+.my-del-btn:hover{color:#fff}
+
+/* 주요 사이트 카드 */
+.site-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:.75rem}
+.site-card{background:#fff;border:1px solid #d2d2d7;border-radius:12px;
+            padding:.7rem 1rem;text-decoration:none;color:inherit;
+            transition:border-color .12s,box-shadow .12s;display:block}
+.site-card:hover{border-color:#0071e3;box-shadow:0 2px 8px rgba(0,113,227,.1)}
+.site-card-name{font-size:.82rem;font-weight:500;color:#1d1d1f}
+.site-card-sub{font-size:.68rem;color:#86868b;margin-top:2px}
+.site-category{font-size:.68rem;font-weight:600;text-transform:uppercase;
+                letter-spacing:.5px;color:#86868b;margin:.65rem 0 .3rem}
+
+/* SM그룹 계열사 뉴스 박스 */
+.sm-news-box{background:linear-gradient(135deg,#eef2ff 0%,#f0f7ff 100%);
+              border:1px solid #c7d2fe;border-radius:10px;
+              padding:.75rem 1rem;margin-bottom:.75rem}
+.sm-news-header{display:flex;align-items:center;gap:6px;font-size:.78rem;
+                 font-weight:600;color:#1e3a8a;margin-bottom:.6rem}
+.sm-news-icon{font-size:.9rem}
+.sm-news-sub{font-size:.67rem;color:#6b7280;font-weight:400;margin-left:auto}
+.sm-news-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;
+               max-height:240px;overflow-y:auto}
+.sm-news-grid.cols3{grid-template-columns:1fr 1fr 1fr}
+.sm-news-row{display:flex;align-items:center;gap:6px;padding:.38rem .6rem;
+              border-radius:6px;background:#fff;border:1px solid #e0e7ff;
+              text-decoration:none;color:inherit;transition:border-color .12s;
+              font-size:.78rem}
+.sm-news-row:hover{border-color:#4f46e5;background:#f5f3ff}
+.sm-badge{font-size:.62rem;font-weight:700;padding:1px 5px;border-radius:3px;
+           white-space:nowrap;flex-shrink:0}
+.sm-badge-ship{background:#1e3a8a;color:#fff}
+.sm-badge-group{background:#e0e7ff;color:#3730a3}
+.sm-news-title{font-size:.76rem;color:#111827;flex:1;line-height:1.3}
+.sm-news-src{font-size:.65rem;color:#9ca3af;white-space:nowrap;flex-shrink:0}
+.sm-news-empty{grid-column:1/-1;text-align:center;padding:.75rem;
+                font-size:.75rem;color:#9ca3af}
+.aff-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.aff-card{background:#1e3a8a;border-radius:12px;padding:.65rem 1rem;
+           text-decoration:none;transition:background .12s}
+.aff-card:hover{background:#1a56db}
+.aff-name{font-size:.8rem;font-weight:500;color:#fff}
+.aff-desc{font-size:.68rem;color:#93c5fd;margin-top:2px}
+
+/* 직접 추가 버튼 */
+.direct-add-btn{display:inline-flex;align-items:center;gap:5px;
+                 font-size:.78rem;padding:6px 14px;border-radius:980px;
+                 border:1px solid #d2d2d7;background:#fff;color:#0071e3;
+                 cursor:pointer;font-family:inherit;
+                 transition:border-color .12s,background .12s}
+.direct-add-btn:hover{border-color:#0071e3;background:#f0f6ff}
+
+/* 모달 */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
+                z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:18px;padding:1.5rem;width:300px;max-width:90vw;
+            box-shadow:0 8px 32px rgba(0,0,0,.15)}
+.modal-title{font-size:.92rem;font-weight:600;color:#1d1d1f;margin-bottom:.9rem}
+.modal-input{width:100%;padding:.6rem .9rem;border:1px solid #d2d2d7;border-radius:8px;
+              font-size:.82rem;margin-bottom:.55rem;font-family:inherit;background:#fff;color:#1d1d1f}
+.modal-input:focus{outline:none;border-color:#0071e3}
+.modal-btns{display:flex;gap:7px;margin-top:.4rem}
+.modal-btn{flex:1;padding:.55rem;border-radius:8px;border:none;
+            font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit}
+.modal-btn-cancel{background:#f5f5f7;color:#1d1d1f}
+.modal-btn-save{background:#0071e3;color:#fff}
+
+.my-add-btn{display:none} /* 상단 직접추가 버튼 숨김 */
+
+/* 접기 패널 */
+.collapse-panel{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
+                 margin-bottom:.75rem;overflow:hidden}
+.collapse-toggle{width:100%;display:flex;justify-content:space-between;
+                  align-items:center;padding:.6rem .9rem;background:#f8faff;
+                  border:none;cursor:pointer;font-size:.78rem;font-weight:600;
+                  color:#374151;font-family:inherit;text-align:left}
+.collapse-toggle:hover{background:#eff6ff;color:#1e3a8a}
+.collapse-arrow{font-size:.72rem;color:#9ca3af;transition:transform .2s}
+.collapse-toggle.open .collapse-arrow{transform:rotate(180deg)}
+.collapse-body{display:none;padding:.6rem .9rem .75rem}
+.collapse-body.open{display:block}
+
+/* EUA D-Day 박스 */
+.eua-box{background:#fff;border:1px solid #e5e7eb;border-radius:12px;
+          padding:.85rem 1.1rem;margin-bottom:.75rem}
+.eua-title{font-size:.8rem;font-weight:600;color:#1e3a8a;margin-bottom:.5rem}
+.eua-body{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:.4rem}
+.eua-item{display:flex;align-items:center;gap:8px;padding:5px 10px;
+           border-radius:7px;background:#f8faff;border:1px solid #e5e7eb}
+.eua-year{font-size:.7rem;color:#6b7280;font-weight:600;flex-shrink:0}
+.eua-date{font-size:.72rem;color:#374151;white-space:nowrap;flex-shrink:0}
+.eua-dday{font-size:.72rem;font-weight:700;padding:2px 7px;border-radius:4px;flex-shrink:0}
+.eua-dday.near{background:#fee2e2;color:#dc2626}
+.eua-dday.mid{background:#fef3c7;color:#d97706}
+.eua-dday.far{background:#e0f2fe;color:#0369a1}
+.eua-note{font-size:.68rem;color:#9ca3af}
+
+/* 안내 박스 접기 */
+.guide-collapse{border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-top:.5rem}
+.guide-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;
+               padding:.55rem .9rem;background:#f8faff;border:none;cursor:pointer;
+               font-size:.76rem;font-weight:600;color:#374151;font-family:inherit;text-align:left}
+.guide-toggle:hover{background:#eff6ff;color:#1e3a8a}
+.guide-toggle-arrow{font-size:.7rem;color:#9ca3af;transition:transform .2s}
+.guide-toggle.open .guide-toggle-arrow{transform:rotate(180deg)}
+.guide-collapse-body{display:none;padding:.65rem .9rem .75rem}
+.guide-collapse-body.open{display:block}
+.guide-title{font-size:.8rem;font-weight:600;color:#1e3a8a;margin-bottom:.6rem}
+.guide-steps{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.5rem}
+.guide-step{display:flex;align-items:center;gap:5px;font-size:.75rem;color:#374151;
+             background:#f8faff;border:1px solid #e5e7eb;border-radius:6px;padding:4px 9px}
+.guide-num{display:inline-flex;align-items:center;justify-content:center;
+            width:16px;height:16px;border-radius:50%;background:#2563eb;
+            color:#fff;font-size:.62rem;font-weight:700;flex-shrink:0}
+.guide-note{font-size:.7rem;color:#9ca3af;margin-top:.25rem}
+
+/* 점심 CTA + 섹션 */
+.lunch-cta{font-size:.75rem;padding:4px 12px;border-radius:980px;
+            border:1.5px solid #f97316;background:#fff7ed;color:#ea580c;
+            cursor:pointer;font-family:inherit;font-weight:600;margin-left:.75rem}
+.lunch-cta:hover{background:#ea580c;color:#fff}
+.lunch-section{display:none;margin:1rem 0;border-radius:12px;overflow:hidden;border:2px solid #fed7aa}
+.lunch-section.open{display:block}
+.lunch-header{background:#ea580c;color:#fff;padding:.65rem 1.1rem;
+               font-size:.85rem;font-weight:700;cursor:pointer;
+               display:flex;justify-content:space-between;align-items:center}
+.lunch-row{cursor:pointer;padding:.6rem 1.1rem;font-size:.8rem;
+            display:flex;justify-content:space-between;align-items:center;
+            border-bottom:1px solid rgba(0,0,0,.06);font-weight:600}
+.lunch-row:last-child{border-bottom:none}
+.lunch-row-arrow{font-size:.72rem;color:#6b7280;transition:transform .2s}
+.lunch-row.open .lunch-row-arrow{transform:rotate(90deg)}
+.lunch-content{display:none;padding:.55rem 1.1rem .7rem;font-size:.78rem;line-height:1.7}
+.lunch-content.open{display:block}
+.lunch-r1{background:#fff7ed;color:#9a3412}.lunch-r2{background:#fef3c7;color:#92400e}
+.lunch-r3{background:#ecfdf5;color:#065f46}.lunch-r4{background:#eff6ff;color:#1e40af}
+.lunch-r5{background:#fdf4ff;color:#6b21a8}.lunch-r6{background:#fff1f2;color:#9f1239}
+
 .footer{font-size:.72rem;color:#d1d5db;text-align:center;
          padding-top:.75rem;border-top:1px solid #e5e7eb}
 
-@media(max-width:640px){
+@media(max-width:700px){
   .idx-grid{grid-template-columns:repeat(2,1fr)}
+  .acc-wrap{grid-template-columns:1fr}
   .news-grid{grid-template-columns:1fr}
-  .links-grid{grid-template-columns:repeat(2,1fr)}
+  .site-grid{grid-template-columns:repeat(2,1fr)}
+  .aff-grid{grid-template-columns:repeat(2,1fr)}
 }
 </style>
 </head>
 <body>
-<div class="container">
+<div class="wrap">
 
   <div class="header">
     <div class="brand">
-      <span class="brand-name">⚓ WaveDesk</span>
-      <span class="brand-sub">해운 아침 브리핑</span>
+      <span class="brand-name">🚢 KLCSM Desk</span>
+      <span class="brand-sub">해운 브리핑</span>
     </div>
-    <div class="header-meta">
-      2026년 06월 29일 (월)<br>
-      업데이트 10:24 KST
+    <button class="lunch-cta" onclick="document.getElementById('lunch-section').scrollIntoView({behavior:'smooth'});document.getElementById('lunch-section').classList.add('open')">
+      🍱 점심 메뉴 정하기
+    </button>
+    <div class="word-box">
+      <div class="word-header">📖 오늘의 해운 단어</div>
+      <div class="word-main">
+        <span class="word-term">Charter Party</span>
+        <span class="word-pos">n.</span>
+        <span class="word-meaning">용선 계약서 — 선박 임대차 계약의 표준 문서</span>
+      </div>
+      <div class="word-sentence">"The Charter Party specified a freight rate of $25 per metric ton."</div>
+      <div class="word-sentence-ko">용선 계약서에는 미터톤당 25달러의 운임이 명시되었다.</div>
     </div>
   </div>
 
-  <div class="section-label">📊 해운 시황 지수</div>
+  <div class="sec-label">📊 해운 시황 지수</div>
   <div class="idx-grid">
-      <div class="idx-card">
+      <a class="idx-card" href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">
         <div class="idx-label">발틱운임지수</div>
         <div class="idx-key">BDI</div>
-        <div class="idx-val">—</div>
-        <div class="idx-chg neu">전일 동일</div>
-      </div>
-      <div class="idx-card">
-        <div class="idx-label">상하이컨운임지수</div>
-        <div class="idx-key">SCFI</div>
-        <div class="idx-val">—</div>
-        <div class="idx-chg neu">전일 동일</div>
-      </div>
-      <div class="idx-card">
-        <div class="idx-label">중국컨운임지수</div>
-        <div class="idx-key">CCFI</div>
-        <div class="idx-val">—</div>
-        <div class="idx-chg neu">전일 동일</div>
-      </div>
-      <div class="idx-card">
+        <div class="idx-val">2,562</div>
+        <div class="idx-chg up">▲ +61</div>
+        <div class="idx-date">기준: 2026-07-01</div><div class="idx-note">매일 · 쉬핑뉴스넷</div>
+      </a>
+      <a class="idx-card" href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">
         <div class="idx-label">한국컨운임지수</div>
         <div class="idx-key">KCCI</div>
+        <div class="idx-val">3,920</div>
+        <div class="idx-chg up">▲ +4.62%</div>
+        <div class="idx-date">기준: 2026-07-03</div><div class="idx-note">매주 · 한국해양진흥공사</div>
+      </a>
+      <a class="idx-card" href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">
+        <div class="idx-label">한국건화물선지수</div>
+        <div class="idx-key">KDCI</div>
+        <div class="idx-val">24,647</div>
+        <div class="idx-chg up">▲ +555</div>
+        <div class="idx-date">기준: 2026-07-02</div><div class="idx-note">매일 · 한국해양진흥공사</div>
+      </a>
+      <a class="idx-card idx-unavail" href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">
+        <div class="idx-label">닝보컨운임지수</div>
+        <div class="idx-key">NCFI</div>
         <div class="idx-val">—</div>
         <div class="idx-chg neu">전일 동일</div>
+        <div class="idx-date">기준: 2026-07-03 조회</div><div class="idx-note">매주 · 한국해양진흥공사</div>
+      </a>
+      <a class="idx-card" href="https://finance.naver.com/marketindex/" target="_blank">
+        <div class="idx-label">원달러환율</div>
+        <div class="idx-key">USD/KRW</div>
+        <div class="idx-val">1,553</div>
+        <div class="idx-chg neu">전일 동일</div>
+        <div class="idx-date">기준: 2026-07-03</div><div class="idx-note">매일 · 네이버금융</div>
+      </a>
+  </div>
+
+  <div class="acc-wrap">
+    <div class="accordion">
+        <div class="acc-header">
+          <button class="acc-toggle" data-target="acc-kdci">
+            KDCI 건화물선 <span class="acc-arrow">▾</span>
+          </button>
+          <a class="acc-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊</a>
+        </div>
+        <div class="acc-body" id="acc-kdci">
+          <div class="acc-rows"><div class="acc-row"><span class="acc-route">CAPE</span><span class="acc-val">36,926 pt<span class="acc-chg up">▲ +4.87%</span></span></div><div class="acc-row"><span class="acc-route">PANAMAX</span><span class="acc-val">19,185 pt<span class="acc-chg up">▲ +0.44%</span></span></div><div class="acc-row"><span class="acc-route">SUPRAMAX</span><span class="acc-val">21,033 pt<span class="acc-chg up">▲ +0.6%</span></span></div><div class="acc-row"><span class="acc-route">HANDY</span><span class="acc-val">15,040 pt<span class="acc-chg dn">▼ -1.42%</span></span></div></div>
+        </div>
+      </div><div class="accordion">
+        <div class="acc-header">
+          <button class="acc-toggle" data-target="acc-kcci">
+            KCCI 컨테이너 노선별 <span class="acc-arrow">▾</span>
+          </button>
+          <a class="acc-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">📊</a>
+        </div>
+        <div class="acc-body" id="acc-kcci">
+          <div class="acc-rows"><div class="acc-row"><span class="acc-route">USWC (KUWI)</span><span class="acc-val">5,969 pt<span class="acc-chg up">▲ +4.19%</span></span></div><div class="acc-row"><span class="acc-route">USEC (KUEI)</span><span class="acc-val">7,217 pt<span class="acc-chg up">▲ +5.64%</span></span></div><div class="acc-row"><span class="acc-route">Europe (KNEI)</span><span class="acc-val">4,720 pt<span class="acc-chg up">▲ +3.37%</span></span></div><div class="acc-row"><span class="acc-route">Mediterranean (KMDI)</span><span class="acc-val">5,876 pt<span class="acc-chg up">▲ +1.87%</span></span></div><div class="acc-row"><span class="acc-route">Middle East (KMEI)</span><span class="acc-val">6,783 pt<span class="acc-chg up">▲ +1.53%</span></span></div><div class="acc-row"><span class="acc-route">Austrailia (KAUI)</span><span class="acc-val">3,096 pt<span class="acc-chg up">▲ +10.06%</span></span></div><div class="acc-row"><span class="acc-route">Latin America East Coast (KLEI)</span><span class="acc-val">7,854 pt<span class="acc-chg up">▲ +7.30%</span></span></div><div class="acc-row"><span class="acc-route">Latin America West Coast (KLWI)</span><span class="acc-val">5,840 pt<span class="acc-chg up">▲ +8.55%</span></span></div><div class="acc-row"><span class="acc-route">South Africa (KSAI)</span><span class="acc-val">3,483 pt<span class="acc-chg up">▲ +2.62%</span></span></div><div class="acc-row"><span class="acc-route">West Africa (KWAI)</span><span class="acc-val">5,260 pt<span class="acc-chg up">▲ +4.26%</span></span></div><div class="acc-row"><span class="acc-route">China (KCI)</span><span class="acc-val">54 pt<span class="acc-chg neu">— +0.00%</span></span></div><div class="acc-row"><span class="acc-route">Japan (KJI)</span><span class="acc-val">222 pt<span class="acc-chg up">▲ +3.74%</span></span></div><div class="acc-row"><span class="acc-route">South East Asia (KSEI)</span><span class="acc-val">1,098 pt<span class="acc-chg up">▲ +0.18%</span></span></div></div>
+        </div>
+      </div><div class="accordion">
+        <div class="acc-header">
+          <button class="acc-toggle" data-target="acc-ncfi">
+            NCFI 닝보 노선별 <span class="acc-arrow">▾</span>
+          </button>
+          <a class="acc-link-btn" href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊</a>
+        </div>
+        <div class="acc-body" id="acc-ncfi">
+          <div class="acc-rows"><div class="acc-row"><span class="acc-route" style="color:#9ca3af">데이터 없음 (주간 발표일 확인)</span></div></div>
+        </div>
       </div>
   </div>
 
-  <div class="section-label">📰 최신 해운 뉴스</div>
+  <!-- 내 사이트 (뉴스 위) -->
+  <div class="my-site-header">
+    <span class="my-site-label">⭐ 내 사이트</span>
+  </div>
+  <div class="my-site-grid droptarget" id="mySiteGrid">
+    <div class="my-empty" id="myEmpty">아래 섹션의 ＋ 버튼을 클릭해서 추가하세요</div>
+  </div>
+
+  <div class="sec-label">📰 최신 해운 뉴스</div>
+  
+      <div class="sm-news-box">
+        <div class="sm-news-header">
+          <span class="sm-news-icon">🚢</span> SM그룹 계열사 소식
+          <span class="sm-news-sub">최근 3일 · Google 뉴스</span>
+        </div>
+        <div class="sm-news-grid" data-count="6">
+          
+          <a class="sm-news-row" href="https://news.google.com/rss/articles/CBMic0FVX3lxTE9DaHYxbTNrUE1hNEtJSjEyRHBaakp5SEVyMEQ4c3EtWUVSX0U5b1VTYmVoMDdwUlZXOXMxYUlqMkZLV0FaY2JkYy11eDB2dFhBb1dWVGJRdjMzUlBhN3UxQ3hXaExGcmRhMHM2UnpuZllhUVU?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="sm-badge sm-badge-ship">해운</span>
+            <span class="sm-news-title">SM그룹대한해운연합노동조합 김수헌 위원장, (사)전국해운노동조합협의회 제7대 의장 선출 - 쉬핑뉴스넷</span>
+            <span class="sm-news-src">쉬핑뉴스넷</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="sm-news-row" href="https://news.google.com/rss/articles/CBMiX0FVX3lxTE9Ca1BfbVY1bi1EaWdocFVpVW02MkZUQ3V5TkhwZHlqbE9hOFRCZFdsR1ZHZDh4MllZTWJjS0l0bHAwZXVqZVVkUEdvOVpGZk1tU0hqeGt0c1NtX0E4alNN?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="sm-badge sm-badge-ship">해운</span>
+            <span class="sm-news-title">신임 해운노조협의회 의장에 김수현 대한해운 노조 위원장 선출 - 뉴스1</span>
+            <span class="sm-news-src">뉴스1</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="sm-news-row" href="https://news.google.com/rss/articles/CBMic0FVX3lxTFBETUNPRFBCTmpuTWQ5bHJUOUZZcFRpVnpXa3UxWXVvTzRsLVhRLWE3SnMzaUcyX2YyR0ZTNGppU1VqWERIY0pNWm1TQWU2MXVPSk01NVZfQ1N3SlA0TGNqZ2NjOFhKb3V3eHRzLXYzOGFRMGM?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="sm-badge sm-badge-group">그룹</span>
+            <span class="sm-news-title">SM그룹 SM하이플러스, 주유∙편의점 등 운전자 맞춤 34가지 ‘구독패스’ 출시 - 오늘경제</span>
+            <span class="sm-news-src">오늘경제</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="sm-news-row" href="https://news.google.com/rss/articles/CBMiT0FVX3lxTFB3UTd1bk1FWnhVUEtoemRYeUxfckp2eHVKdWpyVjJXeTlUV0M1YjdIVjktcm9xbTl0Mm4tOGpYRWdlWWY4UDdGY0V6VnJuUjQ?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="sm-badge sm-badge-group">그룹</span>
+            <span class="sm-news-title">총수 일가 회사에 부당 지원…공정위, SM그룹 제재 [재계톡톡] - v.daum.net</span>
+            <span class="sm-news-src">v.daum.net</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="sm-news-row" href="https://news.google.com/rss/articles/CBMib0FVX3lxTFAzNmR6RUQ1TThPYmJGSFljUVctc3lvVEM1cmxXRVJjd0ZKY0ljN2xnc1FKMEUyRUhWVTl1aHRWT3dsNUFmQTd4U2hzQlRwcC1ianlEYWNsYnZFTXZ2Z0ViMkRfN3VqLVAxaFZTOExyVQ?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="sm-badge sm-badge-group">그룹</span>
+            <span class="sm-news-title">SM그룹 경남기업, 국토부 상호협력평가 2년 연속 최우수…협력사 상생 성과 인정 - 비즈니스플러스</span>
+            <span class="sm-news-src">비즈니스플러스</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="sm-news-row" href="https://news.google.com/rss/articles/CBMiVEFVX3lxTE5fWGUxY1ZkeXZHUFI0akNOV1UwX3dYNUxBNGI1eG9TQXFLNGRaWTF3LWhTQVJsS3FkS0tVS2piWXZuc1JmeWY4ZDdWR2hyaGRjZkstd9IBWEFVX3lxTE03eVdIZDc0MnB1Sk05R0dPUUVBYVVZa3U3bEtGM3d0R0YxTGlLYnpwcDBOSkgxenJDWGE4S3Mzc2pvQXMzOEVhd1M5VmZfSElmeTA4akl4YVQ?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="sm-badge sm-badge-group">그룹</span>
+            <span class="sm-news-title">SM그룹 경남기업, 상생협력평가 ‘최우수’ 우뚝…우오현 회장 상생경영 결실 - 미디어펜</span>
+            <span class="sm-news-src">미디어펜</span>
+            <span class="news-arrow">↗</span>
+          </a>
+        </div>
+      </div>
   <div class="news-grid">
-      <div class="news-source-block">
-        <div class="source-header">
-          <span class="source-flag">🌐</span>
-          <a class="source-name" href="https://www.tradewindsnews.com/latest" target="_blank"
-             style="color:#1a56db;background:#e8f0fe">TradeWinds</a>
+    
+      <div class="news-col">
+        <div class="news-col-header">
+          <span class="flag">📍</span> 국내 해운 뉴스
         </div>
-        <div class="news-rows">
-          <a class="news-row" href="https://www.tradewindsnews.com/tankers/iran-ramps-up-shipping-threat-amid-weekend-of-attacks/2-1-2010583" target="_blank" rel="noopener noreferrer">
-            <span class="news-title">Iran ramps up shipping threat amid weekend of attacks</span>
-            <span class="news-link-icon">↗</span>
+        <div class="news-inner">
+          
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMiiAFBVV95cUxOdzdsTV93NW1BMHZuU1FaQjZEUWV6OVd2dnJDOFdfTGFCTFZQbHV2b09MUE9LOUJTaUg0NTN5UEZUMUpqeXVROHgtRGI0LVlWU0xFbmNULWNiUUdDTFFSTDJVSGN6YjF3U2ZHQWFkQ0FRbm5FakJEZ1dUbHpPQ1kwS1F0OGxNU2R4?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">글로벌이코노믹</span>이란 '호르무즈 유료화' 압박…정유·해운 초긴장 - 글로벌이코노믹</span>
+            <span class="news-arrow">↗</span>
           </a>
-          <a class="news-row" href="https://www.tradewindsnews.com/tankers/strait-of-hormuz-threat-level-rises-after-vlcc-hit-by-projectile/2-1-2010526" target="_blank" rel="noopener noreferrer">
-            <span class="news-title">Strait of Hormuz threat level rises after VLCC hit by projectile</span>
-            <span class="news-link-icon">↗</span>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMic0FVX3lxTE9SZXJiMDJnVWNVMEY4Q09DVlcxOFNqZThUMURXblQycS1SM1p6b1FtbWpvX2NsZ3RabW0zWlBQUEpoNTMwNkhYbVpWbzlUeWd5Vlk1UERzNm5YYmc1VmlQc3k5elh0UzRlZ3Q4SnZoLWR5dVU?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">쉬핑뉴스넷</span>미국 소매업체들, 연말 쇼핑 시즌 앞두고 중국발 주문 대거 앞당겨 '선사들 선제적 대응 필요' - 쉬핑뉴스넷</span>
+            <span class="news-arrow">↗</span>
           </a>
-          <a class="news-row" href="https://www.tradewindsnews.com/casualties/us-launches-strikes-after-trump-accuses-iran-of-foolish-violation-/2-1-2010501" target="_blank" rel="noopener noreferrer">
-            <span class="news-title">US launches strikes after Trump accuses Iran of ‘foolish violation’</span>
-            <span class="news-link-icon">↗</span>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMicEFVX3lxTE01R3NGdGctb2JkSVlPeUJNcG1lblhkSVBDQVFzd19kdDFLTGRyMmJVQkRYZnpVa0tfTTkwM1RhNlF2c3pWVFpCV2x3bHJ6cjRQVWl4c09YUzZndzF3VEdGd3ZaaVI3clY5dkg2VDVIb2E?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">전국뉴스</span>[중소선사 성장사다리]해진공, 제2차 중소선사 특별지원 확대…“성장 사다리로 글로벌 경쟁력 높인다” - 전국뉴스</span>
+            <span class="news-arrow">↗</span>
           </a>
-          <a class="news-row" href="https://www.tradewindsnews.com/shipyards/maritime-rises-higher-on-agenda-as-us-congress-mulls-1-1trn-defence-spending-bill/2-1-2009770" target="_blank" rel="noopener noreferrer">
-            <span class="news-title">Maritime rises higher on agenda as US Congress mulls $1.1trn defence s…</span>
-            <span class="news-link-icon">↗</span>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMia0FVX3lxTFBoR2pFLThiQnVtZ3B5VHJublRxTTl1VmtQRzBWZE5RUm05QmpXVnEzQkI0V19nM0xvX0N0eHZqekVDVENpOVRsbG1YMW5wVTk4VEJvYWV6a2pwRmd6ZDZUNjZ2Q0tZYnFQUENr?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">해사신문</span>HD현대중, 차코스로부터 LNG운반선 추가 수주…TEN 발주 물량 2척으로 확대 - 해사신문</span>
+            <span class="news-arrow">↗</span>
           </a>
-          <a class="news-row" href="https://www.tradewindsnews.com/tankers/imo-seeks-safety-guarantees-before-restart-of-strait-of-hormuz-transits/2-1-2010485" target="_blank" rel="noopener noreferrer">
-            <span class="news-title">IMO seeks safety guarantees before restart of Strait of Hormuz transit…</span>
-            <span class="news-link-icon">↗</span>
+        </div>
+      </div>
+      <div class="news-col">
+        <div class="news-col-header">
+          <span class="flag">🌐</span> 해외 해운 뉴스
+        </div>
+        <div class="news-inner">
+          
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMib0FVX3lxTE9ZcjZhX0VoM2o5bUxPbmhGVmFOZWtRZ25mV0U5UlFFc3dRTHVmQ0VaRlMtU3VrcWpjTjhqbl9YMjBSeVByVzdVZHF3SW91SG9lVmY1dVZhdEpTV1hfeFZwNVZFMVg2MldFM3pBTDRkNA?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">Container News</span>MSC, 다양한 운임 업데이트 - 컨테이너 뉴스</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMiogFBVV95cUxNTzR6ZHNLclJMbzJWdkJJWUxWWVZSbUl4by1EZS1UQ1dFYk01cDg3cUxScWo0UDlXdHB5dFNQOTZMX19jWGtEaF9LdUdQSzFHMklmaEtMLWlGZnYxLXcwTXVTQjMyVUtFVFoyeHZsVVFCLXhWUkJtNkNDZGtIT3RmSnBqWmt6Y1poTWJHSWFGVzR5d1pWQlEtX19XOE9PZ3dQNUE?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">Global Trade Magazine</span>이란 분쟁과 성수기로 인한 해상 및 항공 운임 급등 - Global Trade Magazine</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMiT0FVX3lxTE14VF82ZFJmak1RWDZxY0t0bUZLV2hBMlgwNHh4V2xFTjFDdXhWcWdlQUZWNk5sejY4VXFkNzNIZkdCaHU1WU0xREhoRHl3ekE?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">imarinenews.com</span>머스크, 예상보다 강한 컨테이너 수요와 현물 운임 상승에 따라 2026년 금융 지침 대폭 인상 - imarinenews.com</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMiiAFBVV95cUxOY25WTk9ialpVcTdpcXBLXzVnVE5iNnJxMjIycU5VQ0hEYXU3WFE3MzN1WENhVVlFd01KT3ZDc0Nxb0tKUVVMZ2dHQUFLN2ZBYlc1aWlwZnRuTjQ2VUowZjEtb1pmOVEwVzFxQTA0VnBJUURYN3pfbkZ2QWdlLVZ6WXphLXpFeEdG0gGYAUFVX3lxTE5YWDJEYmhfRlR2ZlR4SzBSV1lNRzRveWVBcEF3OXZpaFFRWmI5dllQaEVFMEp2RzVYYV9hblJPdmlpb2NwUzVlcm56SmJlcEJUd1ZwV2xLcnhLZy1tRTlwc25IMkxmZGF5b1NkOThCTkQzWXFPdjhCV0QyOWMxa21QNjQ4WGFZWG9vVzB1Y0c5WjdlZTVseXZI?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">Upply</span>2026년 하반기 컨테이너 운송 시나리오 - Upply</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMioAFBVV95cUxPbUwxdzBWY2JZMkF3M2lvTmUtNFhRT0FXRENEY3dfdGhpekVlVHoyY0tZaExPSHRWVG1Ea1VERVJvczFBc1VEZDZOTnRLS3BMYXJoUWJGYWs0M3JjdHpCSzNaUno4V2dvV1lsdzEtMHhtd1pwSnZUMlJtWjZqRmRXdXcxLVpZXzYweXkzc0sybkxwSmNUS20yRkx5OXRYTkpH?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">gCaptain</span>태평양 횡단, 아시아-유럽 무역이 긴축되면서 글로벌 컨테이너 현물 운임이 9% 상승 - gCaptain</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMiggFBVV95cUxQaVQ5V2lsQ1Jrdmc1c1MweTZfdWx5QTB3bjlkdzZONklzVjc3cWFPMTZfUVZydEtMSzhVMms3MUw0WnZCa2Z6b05HQ3VSa2diZl9uRHp3WElxd0ZocnBWZlFjeXJHUmhxZnVqUXdoWEpPZS1MRi11VUpBSjVwVjJmTVh3?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">Marine Link</span>Castor Maritime, 두 번째 Kamsarmax 벌크선 구매, 두 척의 선박 인도 인수 - Marine Link</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMixAFBVV95cUxQdFU5Y0FwdTZpcmR3cjFzU2ZOeXpEVVV4SV9reVVvaU5TRHhWWWE4VkJMMXFzQ01wdmNjaXVJU25zMmpSR0JibnF4UDUwa2VtRThSeHJGYzdVcEZ1QThPUENFeklZeGg4bVA4TjhxVVZwTTVVOVkyYlN1MW16UDgtbFJ4UDRKWXU4aEdtRnp3QWpjdFFuMXlhR043WkRHSHkwWVBWOXlIVkdmaFdsVnNpUWpVMDRLVWdlYzhTc291R0NVUUp40gHSAUFVX3lxTE9HejJYZks4S3dDVHRSOENDZmZwSGUzZUlkWlVKYi1IS2RKMEE1Nlg4WmRtcGNldmk0QnYwRUxfb1VrTVFUTGNwRUZLS1Q3bGxyZUxHTEQ2cUZUWWpSa3FuQ09VaU40VVd0RjRNY0FhcjVfRGFkbEFtY1RXOEV6QkZEdDRSNllvS0hxZVZVeWl3dGZFeF9SSFdjNXdVQ2pzTnNRTk4xY1djdmkyVHJuLUtYVHQwSzBqZVU0NlRnVGQzSGYxeUNNODVNblN3MGR3Q3NiUQ?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">Baird Maritime</span>중국 회사, 현지 소유주를 위한 메탄올 동력 벌크선 설계 - Baird Maritime</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMitAFBVV95cUxNYm1UYWl3UEIzeTZlUUhDcEtmZGFJb0lIY0dDaURFbzF6MUdxUjZSdHcwTktPZXE4XzBFSFBHMXVPYWwwYld2Y0Fla1dUZW54VjQyVnNFazFtQU5mcmNHR1hMelY1Z3lUQ21mU09JQnZRVnVUVXlBa2ZQQXVwZ0tWanlaZVExeXktdUtMUEtKNXowOFFqOVZzZ1JSdFkzTGVKal9hQk5xcmlqVU9OUnJXSWF2Q2s?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">TradeWinds News</span>방글라데시의 Akij Resource, 중국 조선소에서 벌크선 주문 - TradeWinds 뉴스</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMiygFBVV95cUxQalEwdTJjVldIMm82OF8yV2IxVXRqaFU2NnBvd3NNSTZveTVGNFVFNFhyckxwVjZUTWpCOUVkYWtiZ0Z5OWV4NEE4aG90NmxmWUdKUFZ5aWJZSTNhdHRQNTVqeDRiQWtPeXRRTGw3dDhWaXd3VHdYejN2STZMbGtvYjFHNWN5MEU3R2ZOU1l3VWNrUGt5VFVKSXJZRXhtMnJRaFNCbFpuaVZTZFpjal96WWNYeFlkcmI1RF9FZ3Y4dlRqTGhTeElPdEVR?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">EnergyNow.com</span>QatarEnergy, 생산 중단으로 인해 운송료 급등하는 가운데 10척의 LNG 운반선 임대 제안 - EnergyNow.com</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMinwFBVV95cUxQYlNMNlFXYTJ0UUotV2N5RjhTTUJ4S1hMWDBWTnZEOXptTnlIenhVN2wyYkJycC01Zk9oSnVmYl9rSkRkSnpENkFiY05xNlJhbzhUT2hIQ2gzMzJSdUg4eFg3MEJfeGt4T1NuZkRlNDZ3ME1kUkNJWDNETm1fbjJqYjBSUF9jcHAyWHEwWDd2RU1NWWZfRzVKajRvdEV2blk?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">Kalkine Media</span>FLEX LNG(NYSE:FLNG), Russell 1000 가운데 LNG 용선 계약 연장 - Kalkine Media</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMikgFBVV95cUxOTlcyOXFJN2hWQ1Bkb244djRNeU11V3UyZ0pONkhBcWxJTzNldUFUYXlwZm9Ca2tQc3puVkg5ZjNld0dhdGRyYXRxVzVNMlItalpEWXlFdFY5Q3g4Qy1CTE5rSEJLVXpvOTMtYkttb01QdWpaWmJVM1NrSzY1WnJ5SURuV3A4bFNNaUdMckFpaDE3Zw?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">czapp.com</span>유럽 ​​항구, 디지털 혁신 가속화 - czapp.com</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMiggFBVV95cUxPSmhWQmZER1ZXZWs3VmI2YndRdDljaXlJWmxOYWZjTmt0ZlFGUUtKVmROV1VuclFUcU4temdpOG5HYWZnRXc2WlJNSUtVd3RZclIycXBxVllmS2MteWtmN0lpSk1GcGJpYmthM0steHEtWnUzZjdiVkQwU3g4eGR2RDZn?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">Marine Link</span>A.P. Moller Holding, KKR로부터 해양 생산량 인수 - Marine Link</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMiogJBVV95cUxNbTAtUS1WUmRPMjljenZRQTR0elgxdzc4c2xYWWhWNVoyRHpCME9lWkhLN0JjUXNhNzM2YVVNQ3RyT0Q1eUh6S0R1clZvZUhuYXpjcFhXaHhXWWY3Nk92cFVoRHh3OFd6NGI5RjRHSXBDR1BlZHpxdDVRWlc0T0FPSWdvYzRCa0RZVER2NkhPdG9HclFaLVZ3VEh6UVJlcDdvdENJWUcyTi02NjZQcUlyeWsyazBEZ1Byeks5cWtVQzZnQU1tdVJxcWd1VEEwT2FZNDdtMklReV85SV82RkVLYXQxeWJZcHB1U2xLMElFb21sV3pGMWo0Q20wUkJKOUF3UGJUNGFramdBbXowZmNqT2ZLTHFaUkNkS21KWktWb2FwQQ?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">GlobeNewswire</span>해양 AI 산업 전망(2026~2032년) | 연료비 - GlobeNewswire</span>
+            <span class="news-arrow">↗</span>
+          </a>
+          <a class="news-row" href="https://news.google.com/rss/articles/CBMivwFBVV95cUxQclE1bG9TQnZjdWJ2ZVh0ME05OHF5RVJuNDhFNXg0T1ZRSDdobG1uRnZaa0NyT00yd0RCMDFoVzdWQ0NiOGdpWlEteFRlM2pESGJucUx1NXdpbWJITF82OWNiWU5lWXdteUpDcWloMkhWU0VnMFRXVWE1WHRydVFrQ3B4NEpmUThiZWVuZlBjdTlOcHNWLW9EMFk4V0lZS1lHTUc0ZUVnSUVwUDhFQUVsUWI5MTY5ci1Zd0laa3ZIaw?oc=5" target="_blank" rel="noopener noreferrer">
+            <span class="news-title"><span class="news-src-tag">TradingView</span>A.P. Moller Holding이 KKR로부터 Ocean Yield 인수를 발표 - TradingView</span>
+            <span class="news-arrow">↗</span>
           </a>
         </div>
       </div>
   </div>
 
-  <div class="section-label">🔗 주요 사이트</div>
-  <div class="links-grid">
-    <a class="link-card" href="https://www.tradewindsnews.com/latest" target="_blank">
-      <div class="lc-name">TradeWinds</div>
-      <div class="lc-sub">글로벌 해운 전문 미디어 (영문)</div>
-    </a>
-    <a class="link-card" href="https://splash247.com/" target="_blank">
-      <div class="lc-name">Splash247</div>
-      <div class="lc-sub">해운·오프쇼어 뉴스 (영문)</div>
-    </a>
-    <a class="link-card" href="https://www.hellenicshippingnews.com/" target="_blank">
-      <div class="lc-name">Hellenic Shipping News</div>
-      <div class="lc-sub">국제 해운 뉴스 (영문)</div>
-    </a>
-    <a class="link-card" href="https://www.ksg.co.kr/news/main_news.jsp" target="_blank">
-      <div class="lc-name">코리아쉬핑가제트</div>
-      <div class="lc-sub">국내 해운 전문 미디어</div>
-    </a>
-    <a class="link-card" href="https://www.shippingnewsnet.com/" target="_blank">
-      <div class="lc-name">쉬핑뉴스넷</div>
-      <div class="lc-sub">국내 해운물류 뉴스</div>
-    </a>
-    <a class="link-card" href="https://www.balticexchange.com/en/data/indices.html" target="_blank">
-      <div class="lc-name">Baltic Exchange</div>
-      <div class="lc-sub">BDI 공식 사이트</div>
-    </a>
-    <a class="link-card" href="https://www.kobc.or.kr/kor/contents/kcci/kcci.do" target="_blank">
-      <div class="lc-name">한국해양진흥공사 KCCI</div>
-      <div class="lc-sub">한국 컨테이너 운임지수</div>
-    </a>
-    <a class="link-card" href="https://www.klnet.co.kr/information/shipinfo_sub01.asp" target="_blank">
-      <div class="lc-name">국가물류통합정보센터</div>
-      <div class="lc-sub">BDI · SCFI · CCFI</div>
-    </a>
-    <a class="link-card" href="https://www.alphaliner.com/top100" target="_blank">
-      <div class="lc-name">Alphaliner Top 100</div>
-      <div class="lc-sub">컨테이너 선사 순위</div>
-    </a>
+  <div class="sites-section">
+    <div class="sec-label">🔗 주요 사이트</div>
+
+    <!-- 운임지수/연료환경/통계 접기 패널 -->
+    <div class="collapse-panel">
+      <button class="collapse-toggle" id="siteToggleBtn">
+        📂 운임지수 · 연료·환경 · 통계·보고서 펼치기 <span class="collapse-arrow">▾</span>
+      </button>
+      <div class="collapse-body" id="siteCollapseBody">
+        <!-- 운임지수 -->
+        <div class="site-group-label">📈 운임지수</div>
+        <div class="site-link-row" id="group-idx">
+          <div class="site-link-item draggable" draggable="true" data-name="SCFI·KCCI·CCFI — surff.kr" data-url="https://surff.kr/indices"><a href="https://surff.kr/indices" target="_blank">SCFI·KCCI·CCFI — surff.kr</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="SCFI·CCFI·BDI — 국가물류통합정보센터" data-url="https://nlic.go.kr/nlic/ocnStatisticBoard.action"><a href="https://nlic.go.kr/nlic/ocnStatisticBoard.action" target="_blank">SCFI·CCFI·BDI — 국가물류통합정보센터</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="BDI·BCI·BPI — 쉬핑뉴스넷" data-url="https://www.shippingnewsnet.com/sdata/page.html?term=1"><a href="https://www.shippingnewsnet.com/sdata/page.html?term=1" target="_blank">BDI·BCI·BPI — 쉬핑뉴스넷</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KCCI — 한국해양진흥공사" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kcci/gridList.do?mId=0304000000" target="_blank">KCCI — 한국해양진흥공사</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="Baltic Exchange" data-url="https://www.balticexchange.com/en/index.html"><a href="https://www.balticexchange.com/en/index.html" target="_blank">Baltic Exchange</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="SCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/scfinew.jsp"><a href="https://en.sse.net.cn/indices/scfinew.jsp" target="_blank">SCFI — 상하이해운거래소</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="CCFI — 상하이해운거래소" data-url="https://en.sse.net.cn/indices/ccfinew.jsp"><a href="https://en.sse.net.cn/indices/ccfinew.jsp" target="_blank">CCFI — 상하이해운거래소</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="TradLinx 해운 블로그" data-url="https://www.tradlinx.com/blog/"><a href="https://www.tradlinx.com/blog/" target="_blank">TradLinx 해운 블로그</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="탱커 TCE·Worldscale" data-url="https://www.spotmarketcap.com/shipping"><a href="https://www.spotmarketcap.com/shipping" target="_blank">탱커 TCE·Worldscale</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+        </div>
+
+        <!-- 연료·환경 -->
+        <div class="site-group-label">⛽ 연료·환경</div>
+        <div class="site-link-row" id="group-env">
+          <div class="site-link-item draggable" draggable="true" data-name="글로벌 벙커유 — Ship&Bunker" data-url="https://shipandbunker.com/prices"><a href="https://shipandbunker.com/prices" target="_blank">⛽ 글로벌 벙커유 — Ship&Bunker</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="VLSFO 실시간 가격 — vlsfo.com" data-url="https://vlsfo.com/"><a href="https://vlsfo.com/" target="_blank">🛢️ VLSFO 실시간 가격 — vlsfo.com</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="EU-ETS 탄소배출권" data-url="https://shipandbunker.com/prices/ea/eu/eu-eua"><a href="https://shipandbunker.com/prices/ea/eu/eu-eua" target="_blank">💶 EU-ETS 탄소배출권</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="LNG 스팟 — LNG Prime" data-url="https://lngprime.com/"><a href="https://lngprime.com/" target="_blank">🔥 LNG 스팟 — LNG Prime</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="EUA 과거 가격" data-url="https://kr.investing.com/commodities/carbon-emissions-historical-data"><a href="https://kr.investing.com/commodities/carbon-emissions-historical-data" target="_blank">📉 EUA 과거 가격</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="JKM LNG 스팟" data-url="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures"><a href="https://kr.investing.com/commodities/lng-japan-korea-marker-platts-futures" target="_blank">🌊 JKM LNG 스팟</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="벌크선 운영비·신조가" data-url="https://www.balticexchange.com/en/data-services/market-information0/indices.html"><a href="https://www.balticexchange.com/en/data-services/market-information0/indices.html" target="_blank">📋 벌크선 운영비·신조가</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+        </div>
+
+        <!-- 통계·보고서 -->
+        <div class="site-group-label">📊 통계·보고서</div>
+        <div class="site-link-row" id="group-stat">
+          <div class="site-link-item draggable" draggable="true" data-name="해상 운송 통계" data-url="https://nlic.go.kr/nlic/seaStatisticBoard.action"><a href="https://nlic.go.kr/nlic/seaStatisticBoard.action" target="_blank">🚢 해상 운송 통계</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KOBC 일간 건화물선 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportDaily/list.do?mId=0201000000" target="_blank">📄 KOBC 일간 건화물선 보고서</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KOBC 주간통합 보고서" data-url="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/reportWeekly/view.do?mId=0202000000" target="_blank">📄 KOBC 주간통합 보고서</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KDCI 세부지수" data-url="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/kdci/gridList.do?mId=0301000000" target="_blank">📊 KDCI 세부지수</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="NCFI 닝보 노선별" data-url="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000"><a href="https://www.kobc.or.kr/ebz/shippinginfo/ncfi/gridList.do?mId=0305000000" target="_blank">📊 NCFI 닝보 노선별</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="EMSA THETIS MRV" data-url="https://thetis.emsa.europa.eu/"><a href="https://thetis.emsa.europa.eu/" target="_blank">🇪🇺 EMSA THETIS MRV</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KR GEARS (탈탄소 플랫폼)" data-url="https://gears.krs.co.kr/"><a href="https://gears.krs.co.kr/" target="_blank">🔰 KR GEARS</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+          <div class="site-link-item draggable" draggable="true" data-name="KOMSA SEM (온실가스 시스템)" data-url="https://sem.komsa.or.kr/"><a href="https://sem.komsa.or.kr/" target="_blank">♻️ KOMSA SEM</a><span class="pin-dot" title="내 사이트에 추가">＋</span></div>
+        </div>
+
+        <!-- 4번: 직접 추가 버튼 - 접기 패널 안으로 이동 -->
+        <div style="margin:.5rem 0 .25rem;display:flex;align-items:center;gap:10px">
+          <button class="direct-add-btn" id="addSiteBtn">＋ 내 사이트에 직접 추가</button>
+          <span style="font-size:.67rem;color:#86868b">URL을 직접 입력해서 내 사이트에 추가</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 주요 해운 사이트 - 국내/해외 신문만 (항상 표시) -->
+    <div class="site-group-label">📰 주요 해운 사이트</div>
+    <div class="site-grid">
+      <a class="site-card" href="https://www.ksg.co.kr/news/main_news.jsp" target="_blank">
+        <div class="site-card-name">코리아쉬핑가제트</div><div class="site-card-sub">국내 해운 전문 미디어</div></a>
+      <a class="site-card" href="https://www.shippingnewsnet.com/news/articleList.html?sc_sub_section_code=S2N1&view_type=sm" target="_blank">
+        <div class="site-card-name">쉬핑뉴스넷</div><div class="site-card-sub">국내 해운물류 뉴스</div></a>
+      <a class="site-card" href="http://www.maritimepress.co.kr/" target="_blank">
+        <div class="site-card-name">한국해운신문</div><div class="site-card-sub">해운·조선·항만물류</div></a>
+      <a class="site-card" href="https://www.klnews.co.kr/" target="_blank">
+        <div class="site-card-name">물류신문</div><div class="site-card-sub">물류 전문 매체</div></a>
+      <a class="site-card" href="http://www.haesanews.com/" target="_blank">
+        <div class="site-card-name">해사신문</div><div class="site-card-sub">해운·해사·환경 전문지</div></a>
+      <a class="site-card" href="https://www.haesainfo.com/news/articleList.html?view_type=sm" target="_blank">
+        <div class="site-card-name">해사정보신문</div><div class="site-card-sub">해운·항만·조선 뉴스</div></a>
+      <a class="site-card" href="https://maritime-executive.com/" target="_blank">
+        <div class="site-card-name">Maritime Executive</div><div class="site-card-sub">해외 해운 전문 (영문)</div></a>
+      <a class="site-card" href="https://splash247.com/" target="_blank">
+        <div class="site-card-name">Splash247</div><div class="site-card-sub">해외 해운 뉴스 (영문)</div></a>
+    </div>
+
+    <!-- SM 계열사 -->
+    <div class="site-group-label">🚢 SM그룹 해운 계열사</div>
+    <div class="aff-grid">
+      <a class="aff-card" href="http://www.korealines.co.kr" target="_blank">
+        <div class="aff-name">대한해운</div><div class="aff-desc">전용선 · 벌크 · 탱커</div></a>
+      <a class="aff-card" href="https://www.smlines.com/kr/" target="_blank">
+        <div class="aff-name">SM상선</div><div class="aff-desc">컨테이너 전문 선사</div></a>
+      <a class="aff-card" href="http://www.smksc.co.kr/" target="_blank">
+        <div class="aff-name">대한상선</div><div class="aff-desc">벌크 · 종합자원 수송</div></a>
+      <a class="aff-card" href="https://klclng.com/" target="_blank">
+        <div class="aff-name">대한해운LNG</div><div class="aff-desc">LNG 전문 운송</div></a>
+      <a class="aff-card" href="https://www.klcsm.co.kr/" target="_blank">
+        <div class="aff-name">KLCSM</div><div class="aff-desc">선박관리 · 수리</div></a>
+      <a class="aff-card" href="http://www.cmship.co.kr/" target="_blank">
+        <div class="aff-name">창명해운</div><div class="aff-desc">벌크 · 특수화물</div></a>
+      <a class="aff-card" href="http://www.smlgi.co.kr/index" target="_blank">
+        <div class="aff-name">SM상선 경인터미널</div><div class="aff-desc">항만 · 물류 서비스</div></a>
+      <a class="aff-card" href="http://www.smlgp.co.kr/index" target="_blank">
+        <div class="aff-name">SM상선 김포터미널</div><div class="aff-desc">항만 · 내륙물류</div></a>
+      <a class="aff-card" href="https://www.smgroup.co.kr/business/shipping-industry.do" target="_blank">
+        <div class="aff-name">SM그룹 (해운부문)</div><div class="aff-desc">그룹 공식 홈페이지</div></a>
+    </div>
+  </div>
+
+  <div id="addLinkModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">사이트 추가</div>
+      <input id="newLinkName" class="modal-input" placeholder="사이트 이름">
+      <input id="newLinkUrl" class="modal-input" placeholder="URL (https://...)">
+      <div class="modal-btns">
+        <button id="cancelLinkBtn" class="modal-btn modal-btn-cancel">취소</button>
+        <button id="saveLinkBtn" class="modal-btn modal-btn-save">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EUA D-Day + 안내 박스 (계열사와 간격) -->
+  <div style="margin-top:1.5rem">
+    <div class="eua-box">
+      <div class="eua-title">⚠️ 중요 D-DAY — 환경규제 & 선물 만기</div>
+      <div class="eua-body" id="euaDday"></div>
+      <div class="eua-note">IMO DCS·EU-ETS·FuelEU·EUA 선물 만기일 기준 (KST 자정 기준)</div>
+    </div>
+
+    <!-- 점심 메뉴 섹션 -->
+    <div class="lunch-section" id="lunch-section">
+      <div class="lunch-header" onclick="this.parentElement.classList.toggle('open')">
+        🍱 점심 메뉴 정하기 <span>▾</span>
+      </div>
+      <div class="lunch-row lunch-r1" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">
+        🎲 오늘의 추천 메뉴 (랜덤 뽑기) <span class="lunch-row-arrow">▶</span>
+      </div>
+      <div class="lunch-content lunch-r1">
+        <div id="lunchRandom" style="font-size:1rem;font-weight:700;padding:.3rem 0"></div>
+        <button onclick="pickLunch()" style="margin-top:.4rem;padding:4px 14px;border-radius:6px;border:1px solid #ea580c;background:#fff;color:#ea580c;cursor:pointer;font-family:inherit;font-size:.75rem">다시 뽑기 🎲</button>
+      </div>
+      <div class="lunch-row lunch-r2" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">
+        🗳️ 팀원 투표하기 <span class="lunch-row-arrow">▶</span>
+      </div>
+      <div class="lunch-content lunch-r2">
+        <div id="lunchVotes" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.5rem"></div>
+        <div style="font-size:.72rem;color:#92400e">※ 이 브라우저에만 저장됩니다</div>
+      </div>
+      <div class="lunch-row lunch-r3" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">
+        📍 근처 맛집 찾기 <span class="lunch-row-arrow">▶</span>
+      </div>
+      <div class="lunch-content lunch-r3">
+        <a href="https://map.naver.com/p/search/화성시+점심" target="_blank" style="color:#065f46;text-decoration:underline">네이버지도 — 근처 음식점 검색 ↗</a><br>
+        <a href="https://www.google.com/maps/search/점심+화성+경기" target="_blank" style="color:#065f46;text-decoration:underline">Google Maps 검색 ↗</a>
+      </div>
+    </div>
+
+    <!-- 안내 박스 - 접기 가능 -->
+    <div class="guide-collapse">
+      <button class="guide-toggle" id="guideToggleBtn">
+        💡 KLCSM Desk를 크롬 시작 페이지로 설정하는 방법
+        <span class="guide-toggle-arrow">▾</span>
+      </button>
+      <div class="guide-collapse-body" id="guideCollapseBody">
+        <div class="guide-steps">
+          <div class="guide-step"><span class="guide-num">1</span>크롬 우측 상단 <b>⋮</b> (점 세 개) 클릭</div>
+          <div class="guide-step"><span class="guide-num">2</span><b>설정</b> 클릭</div>
+          <div class="guide-step"><span class="guide-num">3</span>좌측 메뉴 <b>시작 그룹</b> 선택</div>
+          <div class="guide-step"><span class="guide-num">4</span><b>특정 페이지 또는 페이지 집합 열기</b> 선택</div>
+          <div class="guide-step"><span class="guide-num">5</span><b>새 페이지 추가</b> 후 이 페이지 URL 입력 → 저장</div>
+        </div>
+        <div class="guide-note">크롬을 열 때마다 KLCSM Desk가 자동으로 표시됩니다. 뉴스와 지수는 매일 08:00 KST에 자동 업데이트됩니다.</div>
+      </div>
+    </div>
   </div>
 
   <div class="footer">
-    WaveDesk · 매일 08:00 KST 자동 업데이트 · GitHub Pages 호스팅<br>
-    시황 지수 미표시 시 하단 링크로 직접 확인하세요.
+    2026년 07월 03일 (금) · 09:01 KST &nbsp;|&nbsp; KLCSM Desk · 매일 08:00 자동 업데이트 · GitHub Pages
   </div>
 
 </div>
+
+<script>
+(function() {
+  // ── 아코디언 (하나 열면 전부 열림)
+  document.querySelectorAll('.acc-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const allBodies = document.querySelectorAll('.acc-body');
+      const allBtns = document.querySelectorAll('.acc-toggle');
+      const isOpen = document.getElementById(btn.dataset.target).classList.contains('open');
+      if (isOpen) {
+        allBodies.forEach(b => b.classList.remove('open'));
+        allBtns.forEach(b => b.classList.remove('open'));
+      } else {
+        allBodies.forEach(b => b.classList.add('open'));
+        allBtns.forEach(b => b.classList.add('open'));
+      }
+    });
+  });
+
+  // ── 내 사이트 드래그앤드롭
+  const MY_KEY = 'wavedesk_my_sites_v3';
+  const myGrid = document.getElementById('mySiteGrid');
+  const myEmpty = document.getElementById('myEmpty');
+
+  function getMyLinks() {
+    try { return JSON.parse(localStorage.getItem(MY_KEY)) || []; }
+    catch(e) { return []; }
+  }
+  function saveMyLinks(links) { localStorage.setItem(MY_KEY, JSON.stringify(links)); }
+
+  let dragData = null; // {name, url, fromMy: bool, fromIdx: int}
+
+  function renderMy() {
+    myGrid.querySelectorAll('.my-site-item').forEach(el => el.remove());
+    const links = getMyLinks();
+    myEmpty.style.display = links.length ? 'none' : 'flex';
+    links.forEach((l, i) => {
+      const el = document.createElement('a');
+      el.className = 'my-site-item';
+      el.href = l.url;
+      el.target = '_blank';
+      el.rel = 'noopener noreferrer';
+      el.draggable = true;
+      el.innerHTML = `${l.name}<button class="my-del-btn" title="삭제" tabindex="-1">×</button>`;
+      el.querySelector('.my-del-btn').onclick = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const updated = getMyLinks(); updated.splice(i, 1); saveMyLinks(updated); renderMy(); updatePinDots();
+      };
+      // 내 사이트 간 드래그 (순서 변경)
+      el.addEventListener('dragstart', e => {
+        dragData = {name: l.name, url: l.url, fromMy: true, fromIdx: i};
+        el.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      el.addEventListener('dragend', () => el.classList.remove('dragging'));
+      el.addEventListener('dragover', e => { e.preventDefault(); });
+      el.addEventListener('drop', e => {
+        e.preventDefault(); e.stopPropagation();
+        if (!dragData || !dragData.fromMy || dragData.fromIdx === i) return;
+        const updated = getMyLinks();
+        const [moved] = updated.splice(dragData.fromIdx, 1);
+        updated.splice(i, 0, moved);
+        saveMyLinks(updated); dragData = null; renderMy();
+      });
+      myGrid.appendChild(el);
+    });
+  }
+
+  // 내 사이트 드롭존 이벤트
+  myGrid.addEventListener('dragover', e => {
+    e.preventDefault(); myGrid.classList.add('drag-active');
+  });
+  myGrid.addEventListener('dragleave', () => myGrid.classList.remove('drag-active'));
+  myGrid.addEventListener('drop', e => {
+    e.preventDefault(); myGrid.classList.remove('drag-active');
+    if (!dragData || dragData.fromMy) return; // 내 사이트 간 이동은 위에서 처리
+    const links = getMyLinks();
+    if (!links.find(l => l.url === dragData.url)) {
+      links.push({name: dragData.name, url: dragData.url});
+      saveMyLinks(links); renderMy();
+    }
+    dragData = null;
+  });
+
+  // ── pin-dot 클릭: 내 사이트 추가/제거
+  function updatePinDots() {
+    const links = getMyLinks();
+    const urls = new Set(links.map(l => l.url));
+    document.querySelectorAll('.pin-dot').forEach(dot => {
+      const item = dot.closest('.site-link-item');
+      if (!item) return;
+      const url = item.dataset.url;
+      dot.classList.toggle('pinned', urls.has(url));
+      dot.title = urls.has(url) ? '내 사이트에서 제거' : '내 사이트에 추가';
+    });
+  }
+
+  document.querySelectorAll('.pin-dot').forEach(dot => {
+    dot.addEventListener('click', e => {
+      e.stopPropagation();
+      const item = dot.closest('.site-link-item');
+      if (!item) return;
+      const {name, url} = item.dataset;
+      const links = getMyLinks();
+      const idx = links.findIndex(l => l.url === url);
+      if (idx >= 0) { links.splice(idx, 1); }
+      else { links.push({name, url}); }
+      saveMyLinks(links); renderMy(); updatePinDots();
+    });
+  });
+
+  // site-link-item 더블클릭: 내 사이트에서 제거
+  document.querySelectorAll('.site-link-item.draggable').forEach(item => {
+    item.addEventListener('dblclick', () => {
+      const links = getMyLinks();
+      const idx = links.findIndex(l => l.url === item.dataset.url);
+      if (idx >= 0) {
+        links.splice(idx, 1); saveMyLinks(links); renderMy(); updatePinDots();
+      }
+    });
+    item.addEventListener('dragstart', e => {
+      dragData = {name: item.dataset.name, url: item.dataset.url, fromMy: false};
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    item.addEventListener('dragend', () => item.classList.remove('dragging'));
+  });
+
+  renderMy(); updatePinDots();
+  const addBtn = document.getElementById('addSiteBtn');
+  const modal = document.getElementById('addLinkModal');
+  const cancelBtn = document.getElementById('cancelLinkBtn');
+  const saveBtn = document.getElementById('saveLinkBtn');
+  const nameInput = document.getElementById('newLinkName');
+  const urlInput = document.getElementById('newLinkUrl');
+
+  if (addBtn) addBtn.onclick = () => { modal.classList.add('open'); nameInput.focus(); };
+  if (cancelBtn) cancelBtn.onclick = () => {
+    modal.classList.remove('open'); nameInput.value = ''; urlInput.value = '';
+  };
+  if (saveBtn) saveBtn.onclick = () => {
+    let name = nameInput.value.trim();
+    let url = urlInput.value.trim();
+    if (!url) return;
+    if (!/^https?:\/\//.test(url)) url = 'https://' + url;
+    if (!name) name = url.replace(/^https?:\/\//, '').split('/')[0];
+    const links = getMyLinks(); links.push({name, url});
+    saveMyLinks(links); nameInput.value = ''; urlInput.value = '';
+    modal.classList.remove('open'); renderMy();
+  };
+  if (modal) modal.onclick = e => { if (e.target === modal && cancelBtn) cancelBtn.onclick(); };
+
+  renderMy(); updatePinDots();
+
+  // ── 주요사이트 접기 패널
+  const siteToggleBtn = document.getElementById('siteToggleBtn');
+  const siteCollapseBody = document.getElementById('siteCollapseBody');
+  if (siteToggleBtn && siteCollapseBody) {
+    siteToggleBtn.addEventListener('click', () => {
+      const isOpen = siteCollapseBody.classList.toggle('open');
+      siteToggleBtn.classList.toggle('open', isOpen);
+      siteToggleBtn.innerHTML = isOpen
+        ? '📂 운임지수 · 연료·환경 · 통계·보고서 접기 <span class="collapse-arrow">▾</span>'
+        : '📂 운임지수 · 연료·환경 · 통계·보고서 펼치기 <span class="collapse-arrow">▾</span>';
+    });
+  }
+
+  // ── SM뉴스 그리드 항상 2열 고정 (cols3 제거)
+
+  // ── 점심 메뉴 랜덤 뽑기
+  const LUNCH_MENUS = ['한식 백반','삼겹살','순두부찌개','된장찌개','비빔밥','냉면','국밥','칼국수','짜장면','짬뽕','돈까스','파스타','샌드위치','초밥','샐러드','피자','햄버거','곱창','닭갈비','부대찌개'];
+  function pickLunch() {
+    const el = document.getElementById('lunchRandom');
+    if (el) el.textContent = LUNCH_MENUS[Math.floor(Math.random()*LUNCH_MENUS.length)] + ' 🍽️';
+  }
+  pickLunch();
+
+  // 투표 버튼 생성
+  const votesEl = document.getElementById('lunchVotes');
+  const VOTE_KEY = 'klcsm_lunch_votes';
+  function getVotes() { try { return JSON.parse(localStorage.getItem(VOTE_KEY)) || {}; } catch(e) { return {}; } }
+  function saveVotes(v) { localStorage.setItem(VOTE_KEY, JSON.stringify(v)); }
+  function renderVotes() {
+    if (!votesEl) return;
+    const v = getVotes();
+    votesEl.innerHTML = LUNCH_MENUS.slice(0,8).map(m =>
+      `<button onclick="castVote('${m}')" style="padding:3px 10px;border-radius:5px;border:1px solid #d97706;background:#fef3c7;color:#92400e;cursor:pointer;font-family:inherit;font-size:.75rem">
+        ${m} ${v[m] ? '('+v[m]+')' : ''}
+      </button>`
+    ).join('');
+  }
+  function castVote(menu) {
+    const v = getVotes(); v[menu] = (v[menu]||0)+1; saveVotes(v); renderVotes();
+  }
+  renderVotes();
+
+  // ── 3번: 전체 뉴스 중복 제거 (국내↔해외 포함)
+  (function() {
+    const allRows = document.querySelectorAll('.news-row');
+    const seen = new Set();
+    allRows.forEach(row => {
+      const titleEl = row.querySelector('.news-title');
+      if (!titleEl) return;
+      const key = titleEl.textContent.replace(/[^\w가-힣]/g,'').slice(0,15);
+      if (seen.has(key)) {
+        row.style.display = 'none';
+      } else {
+        seen.add(key);
+      }
+    });
+  })();
+  const guideBtn = document.getElementById('guideToggleBtn');
+  const guideBody = document.getElementById('guideCollapseBody');
+  if (guideBtn && guideBody) {
+    guideBtn.addEventListener('click', () => {
+      const isOpen = guideBody.classList.toggle('open');
+      guideBtn.classList.toggle('open', isOpen);
+    });
+  }
+
+  (function() {
+    const euaEl = document.getElementById('euaDday');
+    if (!euaEl) return;
+    const now = new Date();
+    const yr = now.getFullYear();
+
+    // EUA 선물 만기일: 매년 12월 세 번째 월요일
+    function euaExpiry(y) {
+      const d = new Date(y, 11, 1);
+      const dow = d.getDay();
+      const firstMon = dow <= 1 ? 1 + (1 - dow + 7) % 7 : 1 + (8 - dow);
+      return new Date(y, 11, firstMon + 14);
+    }
+
+    // 고정 연간 일정 (2026~2027)
+    const schedules = [];
+    [yr, yr+1].forEach(y => {
+      schedules.push(
+        {label: `FuelEU Maritime 보고서 마감 (${y})`, date: new Date(y, 0, 31)},
+        {label: `IMO DCS·EU-ETS 배출량 리포트 마감 ★ (${y})`, date: new Date(y, 2, 31)},
+        {label: `THETIS-MRV 검증 마킹 데드라인 (${y})`, date: new Date(y, 3, 30)},
+        {label: `IMO DCS 운항적합증서(SoC) 비치 마감 (${y})`, date: new Date(y, 4, 31)},
+        {label: `EU-ETS 탄소배출권(EUA) 납부 마감 (${y})`, date: new Date(y, 8, 30)},
+        {label: `EUA 선물 만기일 (${y})`, date: euaExpiry(y)}
+      );
+    });
+
+    // 오늘 이후 일정만 필터 + 날짜 오름차순 정렬 + 2027년까지
+    const upcoming = schedules
+      .filter(s => s.date >= now && s.date.getFullYear() <= 2027)
+      .sort((a, b) => a.date - b.date);
+
+    euaEl.innerHTML = upcoming.map(s => {
+      const diff = Math.ceil((s.date - now) / 86400000);
+      const cls = diff <= 30 ? 'near' : diff <= 90 ? 'mid' : 'far';
+      const label = diff === 0 ? 'D-DAY' : `D-${diff}`;
+      const dateStr = s.date.toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
+      return `<div class="eua-item">
+        <span class="eua-date">${dateStr}</span>
+        <span class="eua-year" style="flex:1;color:#374151">${s.label}</span>
+        <span class="eua-dday ${cls}">${label}</span>
+      </div>`;
+    }).join('') || '<div style="color:#9ca3af;font-size:.75rem;padding:.5rem">예정된 일정이 없습니다</div>';
+  })();
+})();
+</script>
 </body>
 </html>
