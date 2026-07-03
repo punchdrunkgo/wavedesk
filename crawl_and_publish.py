@@ -721,16 +721,16 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .wrap{{max-width:1100px;margin:0 auto;padding:.75rem 1.25rem}}
 
 /* 헤더 */
-.header{{display:flex;flex-direction:row;align-items:flex-start;gap:10px;
-         margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:2px solid #2563eb}}
-.header-left{{display:flex;flex-direction:column;gap:5px;flex-shrink:0}}
-.brand{{display:flex;align-items:baseline;gap:8px;flex-shrink:0}}
+.header{{display:flex;flex-direction:row;align-items:center;gap:12px;
+         margin-bottom:.75rem;padding-bottom:.55rem;border-bottom:2px solid #2563eb}}
+.header-left{{display:flex;flex-direction:column;gap:6px;flex-shrink:0;min-width:160px}}
+.brand{{display:flex;align-items:baseline;gap:8px;flex-shrink:0;padding-top:3px}}
 .brand-name{{font-size:1rem;font-weight:700;color:#1e3a8a;letter-spacing:-.5px}}
 .brand-sub{{font-size:.72rem;color:#6b7280}}
 
 /* 오늘의 단어 박스 */
 .word-box{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
-           padding:.45rem 1rem;flex:1;max-width:680px;margin-left:1rem}}
+           padding:.45rem 1rem;flex:1;min-width:0;margin-left:auto}}
 .word-header{{font-size:.62rem;font-weight:600;color:#9ca3af;
               text-transform:uppercase;letter-spacing:.5px;margin-bottom:.15rem}}
 .word-main{{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:.1rem}}
@@ -984,11 +984,11 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .guide-note{{font-size:.7rem;color:#9ca3af;margin-top:.25rem}}
 
 /* 점심 CTA + 섹션 */
-.lunch-cta{{display:block;padding:6px 14px;border-radius:6px;
+.lunch-cta{{display:block;padding:7px 18px;border-radius:6px;
             border:1.5px solid #f97316;background:#fff7ed;color:#ea580c;
-            text-decoration:none;text-align:center;
+            text-decoration:none;text-align:center;width:100%;
             font-family:inherit;font-weight:600;font-size:.8rem;
-            transition:background .12s,color .12s}}
+            transition:background .12s,color .12s;white-space:nowrap}}
 .lunch-cta:hover{{background:#ea580c;color:#fff}}
 .lunch-section{{display:none;margin:1rem 0;border-radius:12px;overflow:hidden;border:2px solid #fed7aa}}
 .lunch-section.open{{display:block}}
