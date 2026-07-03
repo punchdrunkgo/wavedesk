@@ -721,8 +721,9 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .wrap{{max-width:1100px;margin:0 auto;padding:.75rem 1.25rem}}
 
 /* 헤더 */
-.header{{display:flex;justify-content:space-between;align-items:center;
-         margin-bottom:.6rem;padding-bottom:.4rem;border-bottom:2px solid #2563eb}}
+.header{{display:flex;flex-direction:column;gap:5px;
+         margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:2px solid #2563eb}}
+.header-top{{display:flex;justify-content:space-between;align-items:center}}
 .brand{{display:flex;align-items:baseline;gap:8px;flex-shrink:0}}
 .brand-name{{font-size:1rem;font-weight:700;color:#1e3a8a;letter-spacing:-.5px}}
 .brand-sub{{font-size:.72rem;color:#6b7280}}
@@ -983,9 +984,11 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .guide-note{{font-size:.7rem;color:#9ca3af;margin-top:.25rem}}
 
 /* 점심 CTA + 섹션 */
-.lunch-cta{{font-size:.75rem;padding:4px 12px;border-radius:980px;
+.lunch-cta{{display:block;width:100%;padding:7px 0;border-radius:6px;
             border:1.5px solid #f97316;background:#fff7ed;color:#ea580c;
-            cursor:pointer;font-family:inherit;font-weight:600;margin-left:.75rem}}
+            text-decoration:none;text-align:center;
+            font-family:inherit;font-weight:600;font-size:.8rem;
+            transition:background .12s,color .12s}}
 .lunch-cta:hover{{background:#ea580c;color:#fff}}
 .lunch-section{{display:none;margin:1rem 0;border-radius:12px;overflow:hidden;border:2px solid #fed7aa}}
 .lunch-section.open{{display:block}}
@@ -1020,14 +1023,14 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 <div class="wrap">
 
   <div class="header">
-    <div class="brand">
-      <span class="brand-name">🚢 KLCSM Desk</span>
-      <span class="brand-sub">해운 브리핑</span>
+    <div class="header-top">
+      <div class="brand">
+        <span class="brand-name">🚢 KLCSM Desk</span>
+        <span class="brand-sub">해운 브리핑</span>
+      </div>
+      {word_html}
     </div>
-    <button class="lunch-cta" onclick="document.getElementById('lunch-section').scrollIntoView({{behavior:'smooth'}});document.getElementById('lunch-section').classList.add('open')">
-      🍱 점심 메뉴 정하기
-    </button>
-    {word_html}
+    <a class="lunch-cta" href="./lunch">🍱 식신e식권 식당 찾기</a>
   </div>
 
   <div class="sec-label">📊 해운 시황 지수</div>

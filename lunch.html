@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍱 식신e식권 식당 — KLCSM Desk</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+     background:#f0f4f8;color:#111827;font-size:14px}
+
+/* 상단 헤더 */
+.top-bar{background:#1e3a8a;color:#fff;padding:10px 16px;
+         display:flex;align-items:center;justify-content:space-between}
+.top-title{font-size:.9rem;font-weight:700;letter-spacing:-.3px}
+.top-back{font-size:.75rem;color:#93c5fd;text-decoration:none}
+.top-back:hover{color:#fff}
+
+/* 컨트롤 바 */
+.ctrl{background:#fff;border-bottom:1px solid #e5e7eb;
+      padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px;
+      position:sticky;top:0;z-index:50}
+.ctrl input{flex:1;min-width:180px;height:34px;padding:0 10px;font-size:13px;
+            border:1px solid #d1d5db;border-radius:6px;
+            background:#f9fafb;color:#111827;outline:none}
+.ctrl input:focus{border-color:#3b82f6}
+.cat-wrap{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.cat-btn{height:30px;padding:0 12px;font-size:12px;border:1px solid #d1d5db;
+         border-radius:20px;background:#fff;color:#6b7280;cursor:pointer;
+         white-space:nowrap;transition:all .12s}
+.cat-btn.on{background:#1e3a8a;color:#fff;border-color:#1e3a8a}
+.sort-wrap{display:flex;align-items:center;gap:6px;margin-left:auto}
+.sort-btn{height:30px;padding:0 10px;font-size:12px;border:1px solid #d1d5db;
+          border-radius:6px;background:#fff;color:#6b7280;cursor:pointer}
+.sort-btn.on{background:#f1f5f9;color:#1e3a8a;font-weight:600;border-color:#93c5fd}
+.check-label{font-size:12px;color:#6b7280;display:flex;align-items:center;gap:4px;
+             cursor:pointer;white-space:nowrap}
+
+/* 통계 바 */
+.stat-bar{padding:8px 16px;font-size:12px;color:#6b7280;
+          display:flex;gap:12px;flex-wrap:wrap}
+.stat-item span{font-weight:600;color:#1e3a8a}
+
+/* 그리드 */
+.main{padding:12px 16px 80px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:8px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
+      padding:12px;cursor:pointer;transition:border-color .12s,box-shadow .12s}
+.card:hover{border-color:#93c5fd;box-shadow:0 2px 8px rgba(59,130,246,.12)}
+.card.closed{opacity:.45}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px}
+.card-name{font-size:13px;font-weight:600;color:#111827;line-height:1.3}
+.card-dist{font-size:11px;color:#9ca3af;white-space:nowrap;margin-left:4px;flex-shrink:0}
+.card-meta{font-size:11px;color:#6b7280;margin-top:2px}
+.badge{display:inline-block;font-size:10px;padding:1px 6px;border-radius:8px;
+       margin-top:3px;font-weight:500}
+.b-k{background:#dcfce7;color:#166534}
+.b-j{background:#dbeafe;color:#1e40af}
+.b-c{background:#ffedd5;color:#9a3412}
+.b-f{background:#f3e8ff;color:#6b21a8}
+.b-o{background:#f1f5f9;color:#475569}
+.b-closed{background:#fee2e2;color:#991b1b}
+.near-tag{font-size:10px;color:#ea580c;margin-top:2px}
+
+/* 상세 패널 */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90;
+         display:none;transition:opacity .2s}
+.overlay.on{display:block}
+.panel{position:fixed;top:0;right:-100%;width:min(380px,100%);height:100%;
+       background:#fff;border-left:1px solid #e5e7eb;overflow-y:auto;
+       transition:right .22s ease;z-index:100;padding:0}
+.panel.open{right:0}
+.panel-header{background:#1e3a8a;color:#fff;padding:14px 16px;
+              display:flex;justify-content:space-between;align-items:flex-start}
+.panel-name{font-size:15px;font-weight:700;line-height:1.3;flex:1;padding-right:8px}
+.panel-close{background:none;border:none;color:#93c5fd;font-size:20px;
+             cursor:pointer;line-height:1;padding:0;flex-shrink:0}
+.panel-close:hover{color:#fff}
+.panel-body{padding:14px 16px}
+.panel-dist-badge{display:flex;gap:6px;align-items:center;margin-bottom:12px}
+.p-row{display:flex;gap:8px;margin-bottom:10px;font-size:13px;align-items:flex-start}
+.p-label{color:#9ca3af;white-space:nowrap;min-width:56px;flex-shrink:0;font-size:12px}
+.p-val{color:#111827;line-height:1.5}
+.menu-box{background:#f8faff;border:1px solid #e0e7ff;border-radius:8px;
+          padding:10px 12px;margin:12px 0}
+.menu-box-title{font-size:11px;color:#6b7280;font-weight:600;
+                text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.menu-item{font-size:12px;color:#1e3a8a;margin-bottom:4px}
+.warn-box{background:#fee2e2;border-radius:6px;padding:8px 10px;
+          font-size:12px;color:#991b1b;margin-bottom:10px;font-weight:600}
+.naver-btn{display:block;text-align:center;padding:10px;margin-top:12px;
+           background:#03c75a;color:#fff;border-radius:8px;text-decoration:none;
+           font-size:13px;font-weight:600;transition:background .12s}
+.naver-btn:hover{background:#02b350}
+.verify-note{font-size:11px;color:#9ca3af;margin-top:14px;
+             padding-top:10px;border-top:1px solid #f3f4f6;line-height:1.5}
+
+/* 빈 상태 */
+.empty{text-align:center;padding:3rem 1rem;color:#9ca3af;font-size:13px}
+
+/* 업데이트 노트 */
+.update-note{font-size:11px;color:#9ca3af;text-align:center;
+             padding:12px 16px;border-top:1px solid #f3f4f6;margin-top:8px}
+
+@media(max-width:500px){
+  .grid{grid-template-columns:1fr 1fr}
+  .panel{width:100%}
+}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <div class="top-title">🍱 식신e식권 가맹점</div>
+    <div style="font-size:.7rem;opacity:.7;margin-top:1px">KLCSM 사옥 기준 · 부산 중구 중앙동</div>
+  </div>
+  <a class="top-back" href="./">← KLCSM Desk로 돌아가기</a>
+</div>
+
+<div class="ctrl">
+  <input type="text" id="search" placeholder="식당 이름 또는 메뉴 검색..." oninput="render()">
+  <div class="cat-wrap">
+    <button class="cat-btn on" data-cat="ALL" onclick="setCat(this)">전체</button>
+    <button class="cat-btn" data-cat="KOREAN" onclick="setCat(this)">🍚 한식</button>
+    <button class="cat-btn" data-cat="JAPANESE" onclick="setCat(this)">🍣 일식</button>
+    <button class="cat-btn" data-cat="CHINESE" onclick="setCat(this)">🥢 중식</button>
+    <button class="cat-btn" data-cat="CAFE" onclick="setCat(this)">☕ 카페</button>
+    <button class="cat-btn" data-cat="OTHERS" onclick="setCat(this)">🛒 기타</button>
+    <div class="sort-wrap">
+      <button class="sort-btn on" id="sd" onclick="setSort('dist',this)">거리순</button>
+      <button class="sort-btn" id="sn" onclick="setSort('name',this)">이름순</button>
+      <label class="check-label">
+        <input type="checkbox" id="hc" onchange="render()" style="width:13px;height:13px">
+        폐업 제외
+      </label>
+    </div>
+  </div>
+</div>
+
+<div class="stat-bar" id="stat-bar"></div>
+
+<div class="main">
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">검색 결과가 없습니다</div>
+</div>
+
+<div class="update-note" id="udate"></div>
+
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="panel" id="panel">
+  <div class="panel-header">
+    <div class="panel-name" id="p-name"></div>
+    <button class="panel-close" onclick="closePanel()">✕</button>
+  </div>
+  <div class="panel-body" id="p-body"></div>
+</div>
+
+<script>
+const CAT={KOREAN:'🍚 한식',JAPANESE:'🍣 일식',CHINESE:'🥢 중식',CAFE:'☕ 카페',OTHERS:'🛒 기타'};
+const BADGE={KOREAN:'b-k',JAPANESE:'b-j',CHINESE:'b-c',CAFE:'b-f',OTHERS:'b-o'};
+
+const DB=[
+  {n:'엔제리너스',cat:'CAFE',d:0,hrs:'평일 07:00~22:00 / 주말 08:00~22:00',off:'연중무휴',note:'사옥 건물 내',menus:['아메리카노 4,500원','카페라떼 5,000원'],naver:'https://map.naver.com/p/search/부산+중구+엔제리너스+중앙동'},
+  {n:'플레이팅 구내식당',cat:'KOREAN',d:5,hrs:'중식 11:30~13:00 / 석식 17:30~18:30',off:'주말·공휴일 휴무',note:'사옥 내 구내식당',menus:['일일 정식 (메뉴 변동)'],naver:'https://map.naver.com/p/search/부산+중구+KLCSM+플레이팅'},
+  {n:'크리스피도넛 사옥',cat:'CAFE',d:10,hrs:'평일 08:00~19:00',off:'주말 휴무',note:'사옥 지하',menus:['오리지널 도넛 2,000원~','커피 4,000원~'],naver:'https://map.naver.com/p/search/부산+중구+크리스피도넛+사옥'},
+  {n:'CU편의점',cat:'OTHERS',d:10,hrs:'24시간',off:'연중무휴',note:'',menus:['도시락','삼각김밥'],naver:'https://map.naver.com/p/search/부산+중구+중앙동+CU편의점'},
+  {n:'파리바게뜨 사옥지하',cat:'OTHERS',d:20,hrs:'평일 07:00~21:00',off:'일요일 휴무',note:'사옥 지하',menus:['샌드위치','조각케이크'],naver:'https://map.naver.com/p/search/부산+중구+파리바게뜨+중앙동+사옥'},
+  {n:'홍복',cat:'CHINESE',d:26,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'사옥 바로 앞',menus:['짜장면 7,000원','짬뽕 8,000원'],naver:'https://map.naver.com/p/search/부산+중구+홍복+중앙동'},
+  {n:'오니기리와이규동',cat:'JAPANESE',d:41,hrs:'평일 10:00~21:00',off:'확인 필요',note:'',menus:['오니기리 1,500원~','규동 7,000원~'],naver:'https://map.naver.com/p/search/부산+중구+오니기리와이규동+중앙동'},
+  {n:'조마이국수',cat:'KOREAN',d:46,hrs:'평일 11:00~20:00',off:'일요일 휴무',note:'',menus:['국수 6,000원','비빔국수 6,500원'],naver:'https://map.naver.com/p/search/부산+중구+조마이국수+중앙동'},
+  {n:'이태리부대찌개',cat:'KOREAN',d:47,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['부대찌개 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+이태리부대찌개+중앙점'},
+  {n:'수라우동모밀',cat:'JAPANESE',d:56,hrs:'평일 11:00~19:30',off:'수요일 휴무',note:'70년 노포',menus:['모밀국수 9,000원','냄비우동 8,000원'],naver:'https://map.naver.com/p/search/부산+중구+수라우동모밀+중앙동'},
+  {n:'서울삼계탕',cat:'KOREAN',d:59,hrs:'평일 11:00~21:00',off:'확인 필요',note:'',menus:['삼계탕 15,000원'],naver:'https://map.naver.com/p/search/부산+중구+서울삼계탕+중앙동'},
+  {n:'수정칼국수',cat:'KOREAN',d:59,hrs:'평일 11:00~20:00',off:'일요일 휴무',note:'',menus:['칼국수 8,000원','만두국 8,000원'],naver:'https://map.naver.com/p/search/부산+중구+수정칼국수+중앙동'},
+  {n:'일신슈퍼분식',cat:'KOREAN',d:63,hrs:'평일 08:00~20:00',off:'확인 필요',note:'',menus:['떡볶이','순대국'],naver:'https://map.naver.com/p/search/부산+중구+일신슈퍼분식'},
+  {n:'제주흑돈',cat:'KOREAN',d:63,hrs:'평일 11:30~22:00',off:'확인 필요',note:'',menus:['흑돼지 삼겹살 1인 15,000원'],naver:'https://map.naver.com/p/search/부산+중구+제주흑돈+중앙동'},
+  {n:'카도',cat:'JAPANESE',d:68,hrs:'월~토 11:30~23:00 (브레이크 14:30~17:00)',off:'일요일 휴무',note:'일본식 벤또·이자카야',menus:['런치벤또 10,000원~','카도라멘 9,000원~'],naver:'https://map.naver.com/p/search/부산+중구+카도+중앙동'},
+  {n:'생복집',cat:'KOREAN',d:71,hrs:'평일 11:00~21:00',off:'확인 필요',note:'',menus:['전복뚝배기 13,000원','해물뚝배기 11,000원'],naver:'https://map.naver.com/p/search/부산+중구+생복집+중앙동'},
+  {n:'8포인트',cat:'CAFE',d:78,hrs:'평일 08:00~20:00',off:'주말 휴무',note:'',menus:['아메리카노 4,000원','라떼 4,800원'],naver:'https://map.naver.com/p/search/부산+중구+8포인트+중앙동'},
+  {n:'커피빈 중앙역점',cat:'CAFE',d:78,hrs:'평일 07:30~21:00 / 주말 09:00~18:00',off:'연중무휴',note:'',menus:['아메리카노 5,300원','카페라떼 6,000원'],naver:'https://map.naver.com/p/search/부산+중구+커피빈+중앙역점'},
+  {n:'카페엘',cat:'CAFE',d:79,hrs:'평일 08:00~17:00',off:'주말·공휴일 휴무',note:'',menus:['아메리카노','라떼'],naver:'https://map.naver.com/p/search/부산+중구+카페엘+중앙동'},
+  {n:'페어런츠 커피&샐러드',cat:'CAFE',d:80,hrs:'평일 07:30~19:00',off:'주말 휴무',note:'샐러드 식사 대용 추천',menus:['샐러드볼 9,000원~','아메리카노 4,500원'],naver:'https://map.naver.com/p/search/부산+중구+페어런츠커피+중앙동'},
+  {n:'대박한식뷔페',cat:'KOREAN',d:91,hrs:'평일 11:00~15:00',off:'일요일 휴무',note:'',menus:['한식뷔페 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+대박한식뷔페+중앙동'},
+  {n:'후레쉬마트',cat:'OTHERS',d:92,hrs:'매일 08:00~22:00',off:'연중무휴',note:'식재료·생필품 마트',menus:['도시락류','즉석식품'],naver:'https://map.naver.com/p/search/부산+중구+후레쉬마트+본점'},
+  {n:'한식교 부산중앙점',cat:'KOREAN',d:93,hrs:'평일 10:00~21:00',off:'토·일요일 휴무',note:'국밥·솥밥 전문',menus:['돼지국밥 9,000원','솥밥정식 11,000원'],naver:'https://map.naver.com/p/search/부산+중구+한식교+중앙점'},
+  {n:'유원',cat:'KOREAN',d:94,hrs:'평일 11:00~21:00',off:'확인 필요',note:'',menus:['갈비탕 12,000원'],naver:'https://map.naver.com/p/search/부산+중구+유원+중앙동'},
+  {n:'이삭토스트 중앙점',cat:'OTHERS',d:100,hrs:'평일 08:00~21:00',off:'일요일 휴무',note:'',menus:['클래식토스트 3,500원','치즈토스트 4,000원'],naver:'https://map.naver.com/p/search/부산+중구+이삭토스트+중앙점'},
+  {n:'텐퍼센트커피 중앙동점',cat:'CAFE',d:101,hrs:'평일 07:30~18:00 / 토 09:00~15:00',off:'일요일 휴무',note:'',menus:['아메리카노 4,000원','라떼 4,800원'],naver:'https://map.naver.com/p/search/부산+중구+텐퍼센트커피+중앙동'},
+  {n:'세븐일레븐 부산세관점',cat:'OTHERS',d:104,hrs:'24시간',off:'연중무휴',note:'',menus:['도시락','삼각김밥'],naver:'https://map.naver.com/p/search/부산+중구+세븐일레븐+세관점'},
+  {n:'파리바게뜨 중앙역점',cat:'OTHERS',d:105,hrs:'매일 07:00~22:00',off:'연중무휴',note:'중앙역 14번 출구',menus:['샌드위치 4,500원~','빵류 1,500원~'],naver:'https://map.naver.com/p/search/부산+중구+파리바게뜨+중앙역점'},
+  {n:'프루쉬 중앙점',cat:'CAFE',d:108,hrs:'평일 08:00~23:00 / 주말 14:00~23:00',off:'연중무휴',note:'생과일주스 전문',menus:['생과일주스 6,000원~','스무디 6,500원~'],naver:'https://map.naver.com/p/search/부산+중구+프루쉬+중앙점'},
+  {n:'커피드림 중앙점',cat:'CAFE',d:112,hrs:'07:30~19:00',off:'토·일요일 휴무',note:'',menus:['아메리카노 3,500원','라떼 4,000원'],naver:'https://map.naver.com/p/search/부산+중구+커피드림+중앙점'},
+  {n:'수국칼',cat:'KOREAN',d:126,hrs:'평일 11:00~20:00',off:'일요일 휴무',note:'',menus:['칼국수 8,000원'],naver:'https://map.naver.com/p/search/부산+중구+수국칼+중앙동'},
+  {n:'우정분식',cat:'KOREAN',d:122,hrs:'평일 08:00~20:00',off:'일요일 휴무',note:'',menus:['떡볶이','라면'],naver:'https://map.naver.com/p/search/부산+중구+우정분식+중앙동'},
+  {n:'중앙곰탕',cat:'KOREAN',d:132,hrs:'평일 10:00~21:00',off:'일요일 휴무',note:'',menus:['곰탕 10,000원','수육백반 12,000원'],naver:'https://map.naver.com/p/search/부산+중구+중앙곰탕+중앙동'},
+  {n:'대성초밥',cat:'JAPANESE',d:141,hrs:'평일 11:30~21:00',off:'일요일 휴무',note:'',menus:['초밥세트 15,000원~','우동 8,000원'],naver:'https://map.naver.com/p/search/부산+중구+대성초밥+중앙동'},
+  {n:'이백현 옛날돈까스',cat:'JAPANESE',d:143,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['돈까스 9,000원','치즈돈까스 10,000원'],naver:'https://map.naver.com/p/search/부산+중구+이백현옛날돈까스'},
+  {n:'시골통돼지볶음',cat:'KOREAN',d:152,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['돼지볶음 1인 12,000원'],naver:'https://map.naver.com/p/search/부산+중구+시골통돼지볶음+중앙점'},
+  {n:'우리가 탕사랑',cat:'KOREAN',d:161,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['감자탕 10,000원','뼈해장국 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+우리가탕사랑+중앙동'},
+  {n:'자연속의밥상',cat:'KOREAN',d:165,hrs:'평일 11:00~20:00',off:'일요일 휴무',note:'',menus:['채식정식 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+자연속의밥상+중앙동'},
+  {n:'아디커피',cat:'CAFE',d:178,hrs:'평일 08:00~18:00',off:'주말 휴무',note:'',menus:['아메리카노 4,000원'],naver:'https://map.naver.com/p/search/부산+중구+아디커피+중앙동'},
+  {n:'예가보쌈',cat:'KOREAN',d:180,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['보쌈세트 14,000원~'],naver:'https://map.naver.com/p/search/부산+중구+예가보쌈+중앙동'},
+  {n:'언니네골목다방',cat:'CAFE',d:191,hrs:'평일 09:00~18:00',off:'주말 휴무',note:'',menus:['아메리카노 4,000원','쌍화차 5,000원'],naver:'https://map.naver.com/p/search/부산+중구+언니네골목다방+중앙동'},
+  {n:'대풍미가',cat:'KOREAN',d:193,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['점심특선 8,000원','갈비탕 12,000원'],naver:'https://map.naver.com/p/search/부산+중구+대풍미가+중앙동'},
+  {n:'낭낭베이커리',cat:'CAFE',d:221,hrs:'평일 07:00~20:00',off:'일요일 휴무',note:'',menus:['소금빵 2,500원','크로와상 3,000원'],naver:'https://map.naver.com/p/search/부산+중구+낭낭베이커리+중앙동'},
+  {n:'가온밀면 부산중앙점',cat:'KOREAN',d:230,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['밀면 8,000원','비빔밀면 8,500원'],naver:'https://map.naver.com/p/search/부산+중구+가온밀면+중앙점'},
+  {n:'커피앤유',cat:'CAFE',d:242,hrs:'평일 08:00~18:00',off:'주말·공휴일 휴무',note:'',menus:['아메리카노 3,500원'],naver:'https://map.naver.com/p/search/부산+중구+커피앤유+중앙동'},
+  {n:'온그릇 비빔밥 중앙점',cat:'KOREAN',d:253,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['비빔밥 9,000원','돌솥비빔밥 10,000원'],naver:'https://map.naver.com/p/search/부산+중구+온그릇비빔밥+중앙점'},
+  {n:'중앙돼지집',cat:'KOREAN',d:263,hrs:'평일 10:00~21:00',off:'주말·공휴일 휴무',note:'30년 전통 돼지국밥',menus:['돼지국밥 9,000원','순대국 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+중앙돼지집'},
+  {n:'카페코지',cat:'CAFE',d:278,hrs:'평일 08:00~17:30',off:'주말·공휴일 휴무',note:'',menus:['아메리카노 4,000원','라떼 4,500원'],naver:'https://map.naver.com/p/search/부산+중구+카페코지+중앙동'},
+  {n:'순애돼지국밥',cat:'KOREAN',d:271,hrs:'평일 07:00~20:00',off:'일요일 휴무',note:'',menus:['돼지국밥 8,500원','내장국밥 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+순애돼지국밥+중앙동'},
+  {n:'어빈',cat:'KOREAN',d:273,hrs:'평일 11:00~21:00',off:'확인 필요',note:'',menus:['갈비탕','설렁탕'],naver:'https://map.naver.com/p/search/부산+중구+어빈+중앙동'},
+  {n:'남궁고기국수 중앙동점',cat:'KOREAN',d:286,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['고기국수 8,500원','비빔국수 7,000원'],naver:'https://map.naver.com/p/search/부산+중구+남궁고기국수+중앙점'},
+  {n:'하루돼지',cat:'KOREAN',d:288,hrs:'11:00~21:30 (브레이크 15:00~17:00)',off:'일요일 휴무',note:'대패삼겹 점심정식 인기',menus:['대패삼겹 정식 10,000원','돼지갈비 13,000원~'],naver:'https://map.naver.com/p/search/부산+중구+하루돼지+중앙동'},
+  {n:'에이엠공팔',cat:'CAFE',d:289,hrs:'평일 08:00~18:00',off:'주말 휴무',note:'',menus:['아메리카노 4,000원','베이글 3,500원'],naver:'https://map.naver.com/p/search/부산+중구+에이엠공팔+중앙동'},
+  {n:'후지라멘',cat:'JAPANESE',d:302,hrs:'평일 11:30~20:30 / 토 11:30~21:00 (브레이크 14:30~17:00)',off:'일요일 휴무',note:'',menus:['라멘 9,000원','차슈라멘 11,000원'],naver:'https://map.naver.com/p/search/부산+중구+후지라멘+중앙동'},
+  {n:'재벌식당',cat:'KOREAN',d:312,hrs:'—',off:'★2025.10.21 영구폐업★',note:'폐업',menus:[],naver:'',closed:true},
+  {n:'대교식당',cat:'KOREAN',d:313,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['갈치조림 정식 12,000원','백반 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+대교식당+중앙동'},
+  {n:'카페일레븐',cat:'CAFE',d:339,hrs:'평일 07:00~15:00',off:'토·일·공휴일 휴무',note:'직접 로스팅',menus:['싱글오리진 6,000원~','라떼 5,000원'],naver:'https://map.naver.com/p/search/부산+중구+카페일레븐+중앙동'},
+  {n:'대경돼지국밥',cat:'KOREAN',d:352,hrs:'평일 07:00~21:00',off:'확인 필요',note:'',menus:['돼지국밥 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+대경돼지국밥+중앙동'},
+  {n:'아덴블랑제리 중앙동점',cat:'CAFE',d:351,hrs:'평일 08:00~19:00',off:'주말 휴무',note:'',menus:['크로와상 3,500원','바게트 3,000원'],naver:'https://map.naver.com/p/search/부산+중구+아덴블랑제리+중앙동'},
+  {n:'이비가짬뽕 중앙점',cat:'CHINESE',d:381,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['이비가짬뽕 9,000원','짜장면 7,000원'],naver:'https://map.naver.com/p/search/부산+중구+이비가짬뽕+중앙점'},
+  {n:'파리바게뜨 중앙반도점',cat:'OTHERS',d:370,hrs:'월~토 07:00~23:00',off:'일요일 휴무',note:'반도보라빌딩 인근',menus:['샌드위치 4,500원~','빵류 1,500원~'],naver:'https://map.naver.com/p/search/부산+중구+파리바게뜨+중앙반도점'},
+  {n:'청춘탕수육',cat:'CHINESE',d:385,hrs:'매일 11:30~21:30',off:'연중무휴',note:'',menus:['탕수육(소) 18,000원','짜장면 7,000원'],naver:'https://map.naver.com/p/search/부산+중구+청춘탕수육+중앙동'},
+  {n:'읍천리382 중앙점',cat:'CAFE',d:404,hrs:'평일 09:00~21:00',off:'일요일 휴무',note:'',menus:['아메리카노 4,500원','디저트류'],naver:'https://map.naver.com/p/search/부산+중구+읍천리382+중앙점'},
+  {n:'고래섬',cat:'KOREAN',d:407,hrs:'평일 11:00~21:00',off:'확인 필요',note:'',menus:['회덮밥 13,000원','해물뚝배기 12,000원'],naver:'https://map.naver.com/p/search/부산+중구+고래섬+중앙동'},
+  {n:'LA돈까스',cat:'JAPANESE',d:409,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['LA돈까스 10,000원','치즈돈까스 11,000원'],naver:'https://map.naver.com/p/search/부산+중구+LA돈까스+중앙동'},
+  {n:'대성반점',cat:'CHINESE',d:421,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['짜장면 7,000원','짬뽕 8,000원'],naver:'https://map.naver.com/p/search/부산+중구+대성반점+중앙동'},
+  {n:'강가면옥',cat:'KOREAN',d:441,hrs:'평일 11:00~21:00',off:'확인 필요',note:'',menus:['냉면 9,000원','육개장 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+강가면옥+중앙동'},
+  {n:'화덕을 만난 고등어',cat:'KOREAN',d:439,hrs:'평일/토 11:00~21:30 (브레이크 14:30~16:30)',off:'일요일 휴무',note:'화덕구이 주문시 매운탕 제공',menus:['고등어구이 정식 13,000원','고등어+매운탕세트 15,000원'],naver:'https://map.naver.com/p/search/부산+중구+화덕을만난고등어'},
+  {n:'숯불에닭 중앙점',cat:'KOREAN',d:445,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['닭갈비 1인 12,000원'],naver:'https://map.naver.com/p/search/부산+중구+숯불에닭+중앙점'},
+  {n:'낙지야',cat:'KOREAN',d:448,hrs:'평일 11:00~22:00',off:'일요일 휴무',note:'',menus:['낙지볶음 13,000원~','낙지전골 15,000원~'],naver:'https://map.naver.com/p/search/부산+중구+낙지야+중앙동'},
+  {n:'오봉집 중앙점',cat:'KOREAN',d:449,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['순두부찌개 8,500원','청국장 8,000원'],naver:'https://map.naver.com/p/search/부산+중구+오봉집+중앙점'},
+  {n:'기와집',cat:'KOREAN',d:466,hrs:'평일 11:00~21:00',off:'확인 필요',note:'',menus:['보리비빔밥 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+기와집+중앙동'},
+  {n:'담원집',cat:'KOREAN',d:460,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['한상차림 정식'],naver:'https://map.naver.com/p/search/부산+중구+담원집+중앙동'},
+  {n:'대나무집',cat:'KOREAN',d:453,hrs:'평일 11:00~21:00',off:'확인 필요',note:'',menus:['갈비탕 12,000원'],naver:'https://map.naver.com/p/search/부산+중구+대나무집+중앙동'},
+  {n:'우마이야',cat:'JAPANESE',d:472,hrs:'평일 11:30~21:00',off:'일요일 휴무',note:'',menus:['규동 8,000원','카레덮밥 8,000원'],naver:'https://map.naver.com/p/search/부산+중구+우마이야+중앙동'},
+  {n:'점보수제돈까스',cat:'JAPANESE',d:480,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['수제돈까스 10,000원~'],naver:'https://map.naver.com/p/search/부산+중구+점보수제돈까스'},
+  {n:'이르커피',cat:'CAFE',d:510,hrs:'평일 08:00~18:00',off:'주말 휴무',note:'',menus:['아메리카노 4,000원'],naver:'https://map.naver.com/p/search/부산+중구+이르커피+중앙동'},
+  {n:'세끼모토',cat:'JAPANESE',d:531,hrs:'평일 11:30~21:00',off:'일요일 휴무',note:'',menus:['덮밥세트 11,000원~'],naver:'https://map.naver.com/p/search/부산+중구+세끼모토+중앙동'},
+  {n:'카페유',cat:'CAFE',d:525,hrs:'07:00~16:00',off:'주말·공휴일 휴무',note:'패스오더 가능',menus:['아메리카노 3,500원','라떼 4,500원'],naver:'https://map.naver.com/p/search/부산+중구+카페유+중앙동'},
+  {n:'한솥도시락 2가점',cat:'KOREAN',d:539,hrs:'평일 08:00~20:00 / 토 09:00~15:00',off:'일요일 휴무',note:'앱 등록명: 한솔도시락',menus:['도시락 4,500원~','덮밥 5,500원~'],naver:'https://map.naver.com/p/search/부산+중구+한솥도시락+중앙동2가점'},
+  {n:'중앙 위드유카페',cat:'CAFE',d:563,hrs:'평일 08:00~20:00',off:'주말 휴무',note:'',menus:['아메리카노 4,000원'],naver:'https://map.naver.com/p/search/부산+중구+위드유카페+중앙동'},
+  {n:'한국야쿠르트 부산',cat:'OTHERS',d:563,hrs:'평일 08:00~16:00',off:'주말·공휴일 휴무',note:'★사용 완료 필수 확인★',menus:['야쿠르트','헬리코박터 프로젝트'],naver:'https://map.naver.com/p/search/부산+중구+한국야쿠르트+중앙동'},
+  {n:'스텝커피',cat:'CAFE',d:437,hrs:'평일 08:00~19:00',off:'주말 휴무',note:'',menus:['아메리카노 4,000원'],naver:'https://map.naver.com/p/search/부산+중구+스텝커피+중앙동'},
+  {n:'티플레그커피',cat:'CAFE',d:433,hrs:'평일 08:00~15:00',off:'주말·공휴일 휴무',note:'드립커피 스페셜티',menus:['핸드드립 6,000원~','아메리카노 4,500원'],naver:'https://map.naver.com/p/search/부산+중구+티플레그커피+중앙동'},
+  {n:'남원원조추어탕',cat:'KOREAN',d:573,hrs:'평일 11:00~20:00',off:'일요일 휴무',note:'',menus:['추어탕 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+남원원조추어탕+중앙동'},
+  {n:'오사카카레야',cat:'JAPANESE',d:714,hrs:'평일 11:30~21:00',off:'일요일 휴무',note:'',menus:['오사카카레 9,000원','치즈카레 10,000원'],naver:'https://map.naver.com/p/search/부산+중구+오사카카레야+중앙동'},
+  {n:'원미돌솥밥',cat:'KOREAN',d:629,hrs:'평일 11:00~20:00',off:'일요일 휴무',note:'',menus:['돌솥밥 10,000원','보리밥 9,000원'],naver:'https://map.naver.com/p/search/부산+중구+원미돌솥밥+중앙동'},
+  {n:'영주복국',cat:'KOREAN',d:640,hrs:'평일 07:00~21:00',off:'확인 필요',note:'',menus:['복국 13,000원'],naver:'https://map.naver.com/p/search/부산+중구+영주복국+중앙동'},
+  {n:'다깡 중앙점',cat:'JAPANESE',d:643,hrs:'평일 11:30~21:00',off:'일요일 휴무',note:'',menus:['돈까스 10,000원','카레돈까스 11,000원'],naver:'https://map.naver.com/p/search/부산+중구+다깡+중앙점'},
+  {n:'햇님이네밥&스낵',cat:'KOREAN',d:646,hrs:'평일 08:00~19:00',off:'주말·공휴일 휴무',note:'아침/점심 분식',menus:['백반 7,000원','분식류 3,000원~'],naver:'https://map.naver.com/p/search/부산+중구+햇님이네밥+중앙동'},
+  {n:'한우생뭉치',cat:'KOREAN',d:654,hrs:'매일 11:30~22:00',off:'연중무휴 (설·추석 당일·익일 휴무)',note:'',menus:['생뭉치 1인 20,000원~'],naver:'https://map.naver.com/p/search/부산+중구+한우생뭉치+중앙동'},
+  {n:'다복정',cat:'KOREAN',d:654,hrs:'평일 11:00~21:00',off:'확인 필요',note:'',menus:['보쌈정식 12,000원'],naver:'https://map.naver.com/p/search/부산+중구+다복정+중앙동'},
+  {n:'관수가',cat:'KOREAN',d:660,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['갈비찜 정식 15,000원'],naver:'https://map.naver.com/p/search/부산+중구+관수가+중앙동'},
+  {n:'용문',cat:'CHINESE',d:652,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['짬뽕 8,500원','짜장면 7,000원'],naver:'https://map.naver.com/p/search/부산+중구+용문+중앙동'},
+  {n:'청자식당',cat:'KOREAN',d:675,hrs:'평일 09:00~21:00',off:'일요일 휴무',note:'물회 명가',menus:['물회 13,000원','회덮밥 13,000원'],naver:'https://map.naver.com/p/search/부산+중구+청자식당+청자물회집'},
+  {n:'재성밀면',cat:'KOREAN',d:713,hrs:'평일 11:00~21:00',off:'일요일 휴무',note:'',menus:['밀면 8,000원','물밀면 8,000원'],naver:'https://map.naver.com/p/search/부산+중구+재성밀면+중앙동'},
+  {n:'고디스시',cat:'JAPANESE',d:85,hrs:'평일 11:30~21:00',off:'확인 필요',note:'',menus:['스시세트 15,000원~'],naver:'https://map.naver.com/p/search/부산+중구+고디스시+중앙동'},
+  {n:'써브웨이 중앙점',cat:'OTHERS',d:85,hrs:'평일 08:00~21:00 / 주말 09:00~21:00',off:'연중무휴',note:'',menus:['6인치 서브 5,900원~','풋롱 8,900원~'],naver:'https://map.naver.com/p/search/부산+중구+써브웨이+중앙점'},
+  {n:'오빠네 골목식당',cat:'KOREAN',d:85,hrs:'평일 11:00~21:00',off:'확인 필요',note:'',menus:['백반','제육볶음 정식'],naver:'https://map.naver.com/p/search/부산+중구+오빠네골목식당+중앙동'},
+  {n:'오오키니',cat:'JAPANESE',d:85,hrs:'평일 11:30~21:00',off:'확인 필요',note:'',menus:['오코노미야키','타코야키'],naver:'https://map.naver.com/p/search/부산+중구+오오키니+중앙동'},
+  {n:'홍루이젠 남포점',cat:'OTHERS',d:757,hrs:'24시간',off:'연중무휴',note:'무인·대리결제 가능',menus:['홍루이젠 음료'],naver:'https://map.naver.com/p/search/부산+중구+홍루이젠+남포점'},
+  {n:'김밥일번지',cat:'KOREAN',d:840,hrs:'평일 07:00~20:00',off:'일요일 휴무',note:'',menus:['김밥 3,500원','참치김밥 4,500원'],naver:'https://map.naver.com/p/search/부산+중구+김밥일번지+중앙동'},
+  {n:'나이스데이커피',cat:'CAFE',d:819,hrs:'평일 08:00~19:00',off:'주말 휴무',note:'',menus:['아메리카노 4,000원'],naver:'https://map.naver.com/p/search/부산+중구+나이스데이커피+중앙동'},
+  {n:'카페말포이',cat:'CAFE',d:846,hrs:'평일 07:30~19:30 / 주말 10:00~18:00',off:'연중무휴 (광복지하도상가 휴무 준수)',note:'광복지하도상가 내',menus:['아메리카노 4,000원','라떼 4,800원'],naver:'https://map.naver.com/p/search/부산+중구+카페말포이+광복지하도상가'},
+  {n:'양빠 중앙본점',cat:'KOREAN',d:877,hrs:'평일 11:30~21:00',off:'일요일 휴무',note:'',menus:['양념치킨','뿌링클'],naver:'https://map.naver.com/p/search/부산+중구+양빠+중앙본점'},
+  {n:'아는행님',cat:'KOREAN',d:912,hrs:'평일 11:00~21:00',off:'확인 필요',note:'',menus:['회백반 13,000원'],naver:'https://map.naver.com/p/search/부산+중구+아는행님+중앙동'},
+  {n:'한솥도시락 4가점',cat:'KOREAN',d:61,hrs:'평일 09:00~19:00',off:'주말·공휴일 휴무',note:'앱 등록명: 한솔도시락',menus:['도시락 4,500원~','덮밥 5,500원~'],naver:'https://map.naver.com/p/search/부산+중구+한솥도시락+중앙동4가점'},
+];
+
+const UPDATED='2026-06-26';
+let curCat='ALL', curSort='dist';
+
+function setCat(el){
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on'); curCat=el.dataset.cat; render();
+}
+function setSort(s,el){
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on'); curSort=s; render();
+}
+
+function render(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const hc=document.getElementById('hc').checked;
+  let data=DB.filter(r=>{
+    if(hc && r.closed) return false;
+    if(curCat!=='ALL' && r.cat!==curCat) return false;
+    if(q && !r.n.toLowerCase().includes(q) && !(r.menus||[]).join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if(curSort==='dist') data.sort((a,b)=>a.d-b.d);
+  else data.sort((a,b)=>a.n.localeCompare(b.n,'ko'));
+
+  // 통계
+  const cats={KOREAN:0,JAPANESE:0,CHINESE:0,CAFE:0,OTHERS:0};
+  data.forEach(r=>{if(!r.closed) cats[r.cat]=(cats[r.cat]||0)+1;});
+  const sb=document.getElementById('stat-bar');
+  sb.innerHTML=`<span>${data.length}개 표시</span>`+
+    Object.entries(CAT).map(([k,v])=>cats[k]?`<span>${v} <span>${cats[k]}</span></span>`:'').join('');
+
+  const g=document.getElementById('grid');
+  const em=document.getElementById('empty');
+  if(!data.length){g.innerHTML='';em.style.display='block';return;}
+  em.style.display='none';
+
+  g.innerHTML=data.map(r=>{
+    const i=DB.indexOf(r);
+    const bc=BADGE[r.cat]||'b-o';
+    const cl=r.closed?' closed':'';
+    const isNear=r.d<=30 && !r.closed;
+    return `<div class="card${cl}" onclick="openPanel(${i})">
+      <div class="card-top">
+        <span class="card-name">${r.n}</span>
+        <span class="card-dist">${r.d}m</span>
+      </div>
+      <div class="card-meta">${CAT[r.cat]||r.cat}</div>
+      ${r.closed?'<span class="badge b-closed">영구폐업</span>':'<span class="badge '+bc+'">'+(r.d<=10?'📍 사옥 내':r.d<=100?'🚶 도보 1~2분':'🚶 도보 '+Math.round(r.d/70)+'분')+'</span>'}
+      ${r.note&&!r.closed&&r.note!=='폐업'?'<div class="near-tag">'+r.note+'</div>':''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('udate').textContent=
+    `데이터 기준: ${UPDATED} (제미나이 Part4 검증 완료 · Part1/3 일부 미검증) · 매월 1회 업데이트`;
+}
+
+function openPanel(i){
+  const r=DB[i];
+  document.getElementById('p-name').textContent=r.n;
+  const bc=BADGE[r.cat]||'b-o';
+  let h='';
+  if(r.closed) h+=`<div class="warn-box">★ 영구폐업 (2025.10.21) — 식권 사용 불가</div>`;
+  h+=`<div class="panel-dist-badge">
+    <span class="badge ${bc}">${CAT[r.cat]}</span>
+    <span style="font-size:12px;color:#6b7280">사옥에서 ${r.d}m</span>
+  </div>`;
+  if(r.note && r.note!=='폐업') h+=`<div style="font-size:12px;color:#ea580c;margin-bottom:10px;font-weight:500">📌 ${r.note}</div>`;
+  h+=`<div class="p-row"><span class="p-label">영업시간</span><span class="p-val">${r.hrs||'확인 필요'}</span></div>
+  <div class="p-row"><span class="p-label">휴무일</span><span class="p-val">${r.off||'확인 필요'}</span></div>`;
+  if(r.menus&&r.menus.length){
+    h+=`<div class="menu-box"><div class="menu-box-title">대표 메뉴</div>`;
+    r.menus.forEach(m=>h+=`<div class="menu-item">• ${m}</div>`);
+    h+=`</div>`;
+  }
+  if(r.naver&&!r.closed) h+=`<a class="naver-btn" href="${r.naver}" target="_blank">네이버 지도에서 보기 →</a>`;
+  h+=`<div class="verify-note">영업시간·메뉴는 변동될 수 있습니다.<br>방문 전 네이버 지도에서 재확인을 권장합니다.<br>데이터 기준일: ${UPDATED}</div>`;
+  document.getElementById('p-body').innerHTML=h;
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('overlay').classList.add('on');
+}
+function closePanel(){
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('on');
+}
+
+render();
+</script>
+</body>
+</html>
