@@ -30,6 +30,7 @@ jobs:
         run: python crawl_and_publish.py --output . --no-push
         env:
           PYTHONIOENCODING: utf-8
+          KOREAEXIM_API_KEY: ${{ secrets.KOREAEXIM_API_KEY }}
 
       - name: Commit and push
         run: |

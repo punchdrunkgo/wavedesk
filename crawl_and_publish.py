@@ -193,50 +193,89 @@ def get_indices():
     except Exception as e:
         print(f"  [NCFI 오류] {e}")
 
-    # USD/KRW 환율 — open.er-api.com + rate_cache.json 전일비 계산
+    # USD/KRW 환율 — 한국수출입은행 API (매매기준율, deal_bas_r)
     krw_val, krw_chg = None, ""
     cache_path = Path(__file__).parent / "rate_cache.json"
-    try:
-        r2 = requests.get("https://open.er-api.com/v6/latest/USD",
-                          headers=HEADERS, timeout=8)
-        d2 = r2.json()
-        today_krw = float(d2.get("rates", {}).get("KRW", 0))
-        if not today_krw or not (900 < today_krw < 2000):
-            raise ValueError(f"환율 이상값: {today_krw}")
-        krw_val = str(round(today_krw))
-        today_str = NOW.strftime("%Y-%m-%d")
+    exim_key = os.environ.get("KOREAEXIM_API_KEY", "")
 
-        # 캐시 읽기
+    if exim_key:
         try:
-            cache = json.loads(cache_path.read_text(encoding="utf-8"))
-            prev_date = cache.get("date", "")
-            prev_krw  = float(cache.get("krw", today_krw))
-            saved_chg = cache.get("chg", "")  # 저장된 전일비
+            today_str = NOW.strftime("%Y%m%d")
+            url = f"https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey={exim_key}&searchdate={today_str}&data=AP01"
+            r = requests.get(url, headers=HEADERS, timeout=8)
+            data = r.json()
+            today_krw = None
+            for item in data:
+                if item.get("cur_unit") == "USD":
+                    val = item.get("deal_bas_r", "").replace(",", "")
+                    if val:
+                        today_krw = float(val)
+                    break
+            if not today_krw:
+                raise ValueError("USD 데이터 없음")
+            krw_val = str(round(today_krw))
 
-            if prev_date == today_str:
-                # 오늘 이미 실행됨 → 저장된 전일비 재사용
-                krw_chg = saved_chg
-                print(f"  [환율] {krw_val} 재사용전일비:{krw_chg}")
-            else:
-                # 새로운 날 → 전일비 새로 계산
-                diff = today_krw - prev_krw
-                pct  = round(diff / prev_krw * 100, 2)
-                krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
-                print(f"  [환율] {krw_val} ({krw_chg}) prev:{round(prev_krw)} at {prev_date}")
-        except Exception as ce:
-            print(f"  [환율 캐시 읽기 오류] {ce}")
+            # 전일비: cache에서 어제 환율과 비교
+            try:
+                cache = json.loads(cache_path.read_text(encoding="utf-8"))
+                prev_date = cache.get("date", "")
+                prev_krw  = float(cache.get("krw", today_krw))
+                saved_chg = cache.get("chg", "")
+                today_date = NOW.strftime("%Y-%m-%d")
+                if prev_date == today_date:
+                    krw_chg = saved_chg  # 당일 재실행 시 저장값 재사용
+                elif prev_krw and prev_date != today_date:
+                    diff = today_krw - prev_krw
+                    pct  = round(diff / prev_krw * 100, 2)
+                    krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
+            except Exception as ce:
+                print(f"  [환율 캐시 읽기 오류] {ce}")
 
-        # 오늘 환율 + 전일비 캐시 저장
-        try:
+            # 캐시 저장
             cache_path.write_text(
-                json.dumps({"date": today_str, "krw": today_krw, "chg": krw_chg},
-                           ensure_ascii=False),
-                encoding="utf-8")
-        except Exception as we:
-            print(f"  [환율 캐시 쓰기 오류] {we}")
+                json.dumps({"date": NOW.strftime("%Y-%m-%d"),
+                            "krw": today_krw, "chg": krw_chg},
+                           ensure_ascii=False), encoding="utf-8")
+            print(f"  [환율] 수출입은행: {krw_val} ({krw_chg})")
 
-    except Exception as e:
-        print(f"  [환율 오류] {e}")
+        except Exception as e:
+            print(f"  [환율 수출입은행 오류] {e}")
+            # fallback: open.er-api
+            try:
+                r2 = requests.get("https://open.er-api.com/v6/latest/USD",
+                                  headers=HEADERS, timeout=8)
+                fb = float(r2.json().get("rates", {}).get("KRW", 0))
+                if fb and 900 < fb < 2000:
+                    krw_val = str(round(fb))
+            except Exception:
+                pass
+    else:
+        print("  [환율] API 키 없음 — open.er-api fallback")
+        try:
+            r2 = requests.get("https://open.er-api.com/v6/latest/USD",
+                              headers=HEADERS, timeout=8)
+            fb = float(r2.json().get("rates", {}).get("KRW", 0))
+            if fb and 900 < fb < 2000:
+                krw_val = str(round(fb))
+                # 캐시 기반 전일비
+                try:
+                    cache = json.loads(cache_path.read_text(encoding="utf-8"))
+                    prev_krw = float(cache.get("krw", fb))
+                    prev_date = cache.get("date", "")
+                    today_date = NOW.strftime("%Y-%m-%d")
+                    if prev_date == today_date:
+                        krw_chg = cache.get("chg", "")
+                    elif prev_krw:
+                        diff = fb - prev_krw
+                        pct = round(diff / prev_krw * 100, 2)
+                        krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
+                    cache_path.write_text(
+                        json.dumps({"date": today_date, "krw": fb, "chg": krw_chg},
+                                   ensure_ascii=False), encoding="utf-8")
+                except Exception:
+                    pass
+        except Exception as e2:
+            print(f"  [환율 fallback 오류] {e2}")
 
     base["USD/KRW"] = {
         "value":  f"{int(krw_val):,}" if krw_val else "—",
@@ -244,7 +283,7 @@ def get_indices():
         "label":  "원달러환율",
         "date":   NOW.strftime("%Y-%m-%d"),
         "url":    "https://finance.naver.com/marketindex/",
-        "note":   "매일 · open.er-api"
+        "note":   "매일 · 수출입은행(매매기준율)"
     }
     print(f"  [환율 최종] {base['USD/KRW']['value']} {base['USD/KRW']['change']}")
 
@@ -427,73 +466,31 @@ SM_QUERIES = [
 ]
 
 def get_sm_news():
-    """SM그룹 전체 계열사 뉴스 - 최근 3일치, 매일 갱신, 유사 제목 중복 제거, 최소 6개"""
-    items = []
-    cutoff = NOW - timedelta(days=3)
+    """SM그룹 전체 계열사 뉴스 - 최근 3일치, 매일 갱신, 최소 4개 보장"""
 
-    for q in SM_QUERIES:
-        url = f"https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
-        try:
-            r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-            root = ET.fromstring(r.content)
-            for item in root.findall(".//item")[:8]:
-                title = (item.findtext("title") or "").strip()
-                link  = (item.findtext("link") or "").strip()
-                pub   = (item.findtext("pubDate") or "").strip()
-                src_el = item.find("source")
-                lbl = src_el.text.strip() if src_el is not None else "뉴스"
-                if pub:
-                    try:
-                        pub_dt = datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z")
-                        pub_dt = pub_dt.replace(tzinfo=timezone.utc).astimezone(KST)
-                        if pub_dt < cutoff:
-                            continue
-                    except Exception:
-                        pass
-                is_ship = any(c in title for c in SM_SHIPPING)
-                if title and link:
-                    items.append({
-                        "title": title, "url": link,
-                        "label": lbl,
-                        "category": "해운" if is_ship else "그룹"
-                    })
-        except Exception:
-            pass
-
-    # 중복 제거: 제목 앞 20자로 유사 기사 판별 (검색어별로 같은 기사가 중복 유입)
     def sm_nouns(t):
-        # 언론사명(-뉴스1, -프라임경제 등) 제거 후 2글자 이상 한글 명사 추출
         t = re.sub(r"[-–—]\s*[가-힣a-zA-Z0-9]+$", "", t).strip()
         return set(w for w in re.findall(r"[가-힣]{2,}", t))
 
-    seen_prefix, result = set(), []
-    for n in items:
-        t = n["title"]
-        prefix = re.sub(r"[^가-힣a-zA-Z0-9]", "", t)[:15]
-        if prefix in seen_prefix:
-            continue
-        nouns = sm_nouns(t)
-        is_dup = False
-        for existing in result:
-            overlap = nouns & sm_nouns(existing["title"])
-            if len(overlap) >= 3:
-                is_dup = True
-                break
-        if not is_dup:
-            seen_prefix.add(prefix)
-            result.append(n)
+    def is_dup(title, existing_list):
+        nouns = sm_nouns(title)
+        prefix = re.sub(r"[^가-힣a-zA-Z0-9]", "", title)[:15]
+        for ex in existing_list:
+            if re.sub(r"[^가-힣a-zA-Z0-9]", "", ex["title"])[:15] == prefix:
+                return True
+            if len(nouns & sm_nouns(ex["title"])) >= 3:
+                return True
+        return False
 
-    # 6개 미달 시 7일로 확장
-    if len(result) < 6:
-        cutoff2 = NOW - timedelta(days=7)
-        for q in SM_QUERIES[:5]:
-            if len(result) >= 6:
-                break
+    def fetch_sm(cutoff_days, max_per_query=8):
+        items = []
+        cutoff = NOW - timedelta(days=cutoff_days)
+        for q in SM_QUERIES:
             url = f"https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
             try:
                 r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
                 root = ET.fromstring(r.content)
-                for item in root.findall(".//item")[:10]:
+                for item in root.findall(".//item")[:max_per_query]:
                     title = (item.findtext("title") or "").strip()
                     link  = (item.findtext("link") or "").strip()
                     pub   = (item.findtext("pubDate") or "").strip()
@@ -503,21 +500,45 @@ def get_sm_news():
                         try:
                             pub_dt = datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z")
                             pub_dt = pub_dt.replace(tzinfo=timezone.utc).astimezone(KST)
-                            if pub_dt < cutoff2:
+                            if pub_dt < cutoff:
                                 continue
                         except Exception:
                             pass
-                    k = title_key(title)
                     is_ship = any(c in title for c in SM_SHIPPING)
-                    if title and link and k not in seen_keys:
-                        seen_keys.add(k)
-                        result.append({
+                    if title and link:
+                        items.append({
                             "title": title, "url": link,
                             "label": lbl,
                             "category": "해운" if is_ship else "그룹"
                         })
             except Exception:
                 pass
+        return items
+
+    # 1차: 3일치
+    raw = fetch_sm(3)
+    result = []
+    for n in raw:
+        if not is_dup(n["title"], result):
+            result.append(n)
+
+    # 2차: 4개 미달 시 7일로 확장
+    if len(result) < 4:
+        raw2 = fetch_sm(7, max_per_query=10)
+        for n in raw2:
+            if len(result) >= 8:
+                break
+            if not is_dup(n["title"], result):
+                result.append(n)
+
+    # 3차: 여전히 4개 미달 시 30일로 확장 (최근 뉴스 가뭄 대비)
+    if len(result) < 4:
+        raw3 = fetch_sm(30, max_per_query=5)
+        for n in raw3:
+            if len(result) >= 6:
+                break
+            if not is_dup(n["title"], result):
+                result.append(n)
 
     result.sort(key=lambda x: 0 if x["category"] == "해운" else 1)
     return result[:8]
