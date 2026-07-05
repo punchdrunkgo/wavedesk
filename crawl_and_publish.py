@@ -194,7 +194,6 @@ def get_indices():
         print(f"  [NCFI 오류] {e}")
 
     # USD/KRW 환율 — open.er-api.com + rate_cache.json 전일비 계산
-    # rate_cache.json: {"date": "YYYY-MM-DD", "krw": 1234.56} 형태로 레포에 저장
     krw_val, krw_chg = None, ""
     cache_path = Path(__file__).parent / "rate_cache.json"
     try:
@@ -205,28 +204,37 @@ def get_indices():
         if not today_krw or not (900 < today_krw < 2000):
             raise ValueError(f"환율 이상값: {today_krw}")
         krw_val = str(round(today_krw))
-        # 전일비: cache 파일에서 어제 환율 불러와 비교
+        today_str = NOW.strftime("%Y-%m-%d")
+
+        # 캐시 읽기
         try:
             cache = json.loads(cache_path.read_text(encoding="utf-8"))
-            prev_krw = float(cache.get("krw", today_krw))
             prev_date = cache.get("date", "")
-            if prev_date != NOW.strftime("%Y-%m-%d"):  # 오늘 날짜가 아닐 때만 비교
+            prev_krw  = float(cache.get("krw", today_krw))
+            saved_chg = cache.get("chg", "")  # 저장된 전일비
+
+            if prev_date == today_str:
+                # 오늘 이미 실행됨 → 저장된 전일비 재사용
+                krw_chg = saved_chg
+                print(f"  [환율] {krw_val} 재사용전일비:{krw_chg}")
+            else:
+                # 새로운 날 → 전일비 새로 계산
                 diff = today_krw - prev_krw
                 pct  = round(diff / prev_krw * 100, 2)
                 krw_chg = f"+{pct}%" if pct >= 0 else f"{pct}%"
                 print(f"  [환율] {krw_val} ({krw_chg}) prev:{round(prev_krw)} at {prev_date}")
-            else:
-                print(f"  [환율] {krw_val} (캐시 날짜 동일, 전일비 생략)")
         except Exception as ce:
             print(f"  [환율 캐시 읽기 오류] {ce}")
-        # 오늘 환율을 cache에 저장
+
+        # 오늘 환율 + 전일비 캐시 저장
         try:
             cache_path.write_text(
-                json.dumps({"date": NOW.strftime("%Y-%m-%d"), "krw": today_krw},
+                json.dumps({"date": today_str, "krw": today_krw, "chg": krw_chg},
                            ensure_ascii=False),
                 encoding="utf-8")
         except Exception as we:
             print(f"  [환율 캐시 쓰기 오류] {we}")
+
     except Exception as e:
         print(f"  [환율 오류] {e}")
 
