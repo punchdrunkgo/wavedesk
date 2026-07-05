@@ -1,7 +1,7 @@
 """
 WaveDesk - 해운 아침 브리핑
 """
-import subprocess, sys, re, xml.etree.ElementTree as ET, json
+import os, subprocess, sys, re, xml.etree.ElementTree as ET, json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
