@@ -2,8 +2,8 @@ name: WaveDesk Daily Briefing
 
 on:
   schedule:
-    - cron: '0 23 * * *'   # KST 08:00 (주 실행)
-    - cron: '30 0 * * *'   # KST 09:30 (보험용)
+    - cron: '0 22 * * *'   # KST 07:00 목표 (지연 감안 → 07:30~08:00 실행)
+    - cron: '0 23 * * *'   # KST 08:00 보험용
   workflow_dispatch:
 
 jobs:
