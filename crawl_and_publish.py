@@ -817,10 +817,11 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .mw-table tbody tr{{border-bottom:1px solid #f0f4f8}}
 /* 오늘 헤더: 짙은 네이비 */
 .mw-table thead th{{background:#1e3a8a;color:#fff;font-weight:700;font-size:.72rem}}
-/* 내일 헤더: 중간 파랑 */
+/* 날짜 colspan 헤더 */
+.mw-day-today{{background:#1e3a8a!important;color:#fff!important;font-weight:700;text-align:center;border-right:2px solid #fff}}
+.mw-day-tmr{{background:#2563eb!important;color:#fff!important;font-weight:700;text-align:center}}
+/* 내일 시간 헤더: 중간 파랑 */
 .mw-th-tmr{{background:#2563eb!important;color:#fff!important}}
-/* 오늘/내일 구분 행 */
-.mw-day-sep{{font-size:.7rem;font-weight:800;letter-spacing:.5px}}
 /* 행 레이블 */
 .mw-row-label{{text-align:left;color:#fff;font-size:.7rem;font-weight:700;
                background:#374151!important;border-right:2px solid #6b7280;
@@ -1640,18 +1641,27 @@ tr:has(.mw-rl-icon){{background:#f9fafb}}
         const h = d.hourly;
         const now = new Date();
         const nowH = now.getHours();
-        // 오늘: 현재시각 이후 3시간 간격, 내일: 6,9,12,15,18,21시
-        const todaySlots = [], tmrSlots = [];
+        const DAY_KO = ['일','월','화','수','목','금','토'];
+        const today = new Date(now); today.setHours(0,0,0,0);
+        const tmr   = new Date(today); tmr.setDate(today.getDate()+1);
+        const fmt = (d) => `${{d.getMonth()+1}}/${{d.getDate()}}(${{DAY_KO[d.getDay()]}})`;
+
         // 오늘: 현재시 포함 3시간 간격
-        for (let i = nowH; i < 24; i += 3) todaySlots.push({{h:i, day:'오늘', idx:i}});
+        const todaySlots = [], tmrSlots = [];
+        for (let i = nowH; i < 24; i += 3) todaySlots.push({{h:i, day:'today', idx:i}});
         // 내일: 3시간 간격 (0~21시)
-        for (let i = 0; i <= 21; i += 3) tmrSlots.push({{h:i, day:'내일', idx:24+i}});
+        for (let i = 0; i <= 21; i += 3) tmrSlots.push({{h:i, day:'tmr', idx:24+i}});
         const allSlots = [...todaySlots, ...tmrSlots];
 
         function mkRow(fn) {{ return allSlots.map(fn).join(''); }}
 
-        const timeRow = mkRow(s => `<th class="${{s.day==='내일'?'mw-th-tmr':''}}">${{s.h}}시</th>`);
-        const dayRow  = mkRow(s => `<th class="mw-day-sep ${{s.day==='내일'?'mw-th-tmr':''}}">${{s.day}}</th>`);
+        // 날짜 행: colspan으로 날짜/요일을 묶어서 표시
+        const dayHeaderRow =
+          `<th class="mw-row-label"></th>` +
+          (todaySlots.length ? `<th colspan="${{todaySlots.length}}" class="mw-day-today">${{fmt(today)}}</th>` : '') +
+          (tmrSlots.length  ? `<th colspan="${{tmrSlots.length}}"  class="mw-day-tmr">${{fmt(tmr)}}</th>`   : '');
+
+        const timeRow = mkRow(s => `<th class="${{s.day==='tmr'?'mw-th-tmr':''}}">${{s.h}}시</th>`);
         const iconRow = mkRow(s => `<td>${{WI[h.weathercode[s.idx]]||'🌡️'}}</td>`);
         const tempRow = mkRow(s => {{
           const t = Math.round(h.temperature_2m[s.idx]);
@@ -1675,9 +1685,9 @@ tr:has(.mw-rl-icon){{background:#f9fafb}}
         const ppEl = document.getElementById('mw-precip-summary');
         if (ppEl) ppEl.textContent = `24시간 내 최대 강수확률 ${{maxPP}}%`;
 
-        container.innerHTML = `<div style="overflow-x:auto"><table class="mw-table">
+        container.innerHTML = `<div style="overflow-x:auto;margin-top:4px"><table class="mw-table">
           <thead>
-            <tr><th class="mw-row-label"></th>${{dayRow}}</tr>
+            <tr>${{dayHeaderRow}}</tr>
             <tr><th class="mw-row-label"></th>${{timeRow}}</tr>
           </thead>
           <tbody>
@@ -1691,6 +1701,7 @@ tr:has(.mw-rl-icon){{background:#f9fafb}}
           <a href="https://www.windfinder.com/forecast/busan_port" target="_blank" style="color:#2563eb">Windfinder ↗</a>
           &nbsp;·&nbsp;
           <a href="https://marine.kma.go.kr/mmis/" target="_blank" style="color:#2563eb">해양기상정보포털 ↗</a>
+          &nbsp;·&nbsp; {upd} KST 기준 · 특보 발령 시 자동 표시
         </div>`;
       }} catch(e) {{
         if (container) container.textContent = '날씨 데이터를 불러오는 중 오류가 발생했습니다.';
