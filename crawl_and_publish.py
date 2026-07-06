@@ -352,6 +352,43 @@ def translate_titles(news_list):
     return news_list
 
 
+def get_marine_warning():
+    """기상청 해상특보 + 태풍정보 크롤링"""
+    result = {"warnings": [], "typhoon": None, "updated": NOW.strftime("%H:%M")}
+    try:
+        # 해상특보 페이지 파싱
+        url = "https://www.weather.go.kr/w/ocean/warning.do"
+        r = requests.get(url, headers=HEADERS, timeout=8)
+        r.encoding = "utf-8"
+        soup = BeautifulSoup(r.text, "lxml")
+        # 특보 목록 파싱 시도
+        for tag in soup.select(".warn-list li, .special-report li, table.tbl-basic tbody tr"):
+            txt = tag.get_text(" ", strip=True)
+            if txt and len(txt) > 5:
+                result["warnings"].append(txt[:100])
+            if len(result["warnings"]) >= 5:
+                break
+    except Exception as e:
+        print(f"  [해상특보 오류] {e}")
+
+    try:
+        # 태풍 정보 페이지
+        r2 = requests.get("https://www.weather.go.kr/w/typhoon/forecast.do",
+                          headers=HEADERS, timeout=8)
+        r2.encoding = "utf-8"
+        soup2 = BeautifulSoup(r2.text, "lxml")
+        # 활성 태풍 확인
+        for tag in soup2.select(".typhoon-name, .ty-name, h3, h4"):
+            txt = tag.get_text(strip=True)
+            if txt and ("호" in txt or "태풍" in txt) and len(txt) < 30:
+                result["typhoon"] = txt
+                break
+    except Exception as e:
+        print(f"  [태풍정보 오류] {e}")
+
+    return result
+
+
 def get_news():
     """국내/해외 각 10~15개, 해운 우선 정렬"""
     # 해운 핵심 키워드 (우선순위 높음)
@@ -569,7 +606,32 @@ def dir_cls(chg):
     return "neu", "—"
 
 
-def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news):
+def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news, marine_warning):
+    # 기상특보 박스 HTML
+    mw = marine_warning
+    warns = mw.get("warnings", [])
+    typhoon = mw.get("typhoon")
+    if warns or typhoon:
+        warn_items = ""
+        if typhoon:
+            warn_items += f'<div class="mw-item mw-typhoon">{typhoon_icon} {{typhoon}}</div>'.format(typhoon=typhoon)
+        for w_txt in warns[:3]:
+            warn_items += f'<div class="mw-item">{{w_txt}}</div>'.format(w_txt=w_txt)
+        marine_html = (
+            f'<div class="marine-warn-box">'
+            f'<div class="mw-header"><span>{warn_icon} 기상청 해상특보</span>'
+            f'<a href="https://www.weather.go.kr/w/ocean/warning.do" target="_blank" class="mw-link">기상청 ↗</a></div>'
+            f'{warn_items}'
+            f'<div class="mw-note">업데이트: {{upd}} KST</div></div>'
+        ).format(warn_items=warn_items, upd=mw.get("updated",""))
+    else:
+        marine_html = (
+            f'<div class="marine-warn-box mw-clear">'
+            f'<span class="mw-ok">{ok_icon} 현재 해상특보 없음</span>'
+            f'<a href="https://www.weather.go.kr/w/ocean/warning.do" target="_blank" class="mw-link">기상청 ↗</a>'
+            f'<span class="mw-note">{{upd}} KST 기준</span></div>'
+        ).format(upd=mw.get("updated",""))
+
     # 오늘의 단어 박스 HTML
     w = WORD_OF_DAY
     if w:
@@ -726,6 +788,19 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 /* 날씨+단어 래퍼 - 가로 배치 */
 .weather-word-wrap{{display:flex;flex-direction:row;align-items:flex-start;gap:10px;
                     flex:1;min-width:0;margin-left:auto}}
+/* 기상특보 박스 */
+.marine-warn-box{{display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+                  padding:.5rem .75rem;border-radius:8px;margin-bottom:.5rem;
+                  background:#fff8f0;border:1px solid #fed7aa;font-size:.75rem}}
+.marine-warn-box.mw-clear{{background:#f0fdf4;border-color:#bbf7d0}}
+.mw-header{{display:flex;justify-content:space-between;align-items:center;
+            width:100%;font-size:.75rem;font-weight:600;color:#9a3412;margin-bottom:3px}}
+.mw-item{{background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:.72rem}}
+.mw-typhoon{{background:#fca5a5;font-weight:600}}
+.mw-ok{{font-size:.75rem;color:#166534;font-weight:600}}
+.mw-link{{font-size:.68rem;color:#2563eb;text-decoration:none;margin-left:auto}}
+.mw-link:hover{{text-decoration:underline}}
+.mw-note{{font-size:.65rem;color:#9ca3af;width:100%;margin-top:2px}}
 /* 날씨 바 */
 .weather-bar{{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start}}
 .weather-chip{{display:flex;flex-direction:column;align-items:center;
@@ -1068,7 +1143,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <div class="weather-modal">
         <div class="weather-modal-title">🌍 날씨 지역 설정</div>
         <div id="weatherCityInputs"></div>
-        <div style="font-size:.68rem;color:#9ca3af;margin-top:6px">위도·경도는 Google Maps에서 확인 가능</div>
+        <div style="font-size:.68rem;color:#9ca3af;margin-top:6px">슬롯 3개 · 주요 항구 중 선택</div>
         <div class="weather-modal-btns">
           <button id="weatherModalCancel">취소</button>
           <button class="weather-modal-save" id="weatherModalSave">저장</button>
@@ -1077,6 +1152,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     </div>
   </div>
 
+  {marine_html}
   <div class="sec-label">📊 해운 시황 지수</div>
   <div class="idx-grid">{idx_html}
   </div>
@@ -1505,22 +1581,63 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     }});
   }}
 
-  // ── 날씨 위젯 (Open-Meteo + Windy 연결)
+  // ── 날씨 위젯 (Open-Meteo + Windfinder 항구 날씨)
   (function() {{
     const WI = {{0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',
       51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',
       71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'}};
-    const DEFAULT_CITIES = [
-      {{name:'부산', lat:35.1796, lon:129.0756}},
-      {{name:'상하이', lat:31.2304, lon:121.4737}},
-      {{name:'싱가포르', lat:1.3521, lon:103.8198}},
+
+    // 주요 항구 목록 — SM 계열사 기항 추정 우선 + 세계 주요 항구
+    // [AI 예측 정보] SM 계열사 기항 항구는 사업 영역 기반 추론값
+    const PORT_LIST = [
+      // ── SM 계열사 핵심 기항 추정 (한국·동아시아)
+      {{name:'부산항',       lat:35.1004, lon:129.0366, slug:'busan_port'}},
+      {{name:'인천항',       lat:37.4563, lon:126.6225, slug:'incheon_south_korea'}},
+      {{name:'광양항',       lat:34.9139, lon:127.6950, slug:'gwangyang_south_korea'}},
+      {{name:'상하이항',     lat:31.1456, lon:121.8036, slug:'shanghai'}},
+      {{name:'닝보항',       lat:29.8683, lon:121.5440, slug:'ningbo_china'}},
+      {{name:'칭다오항',     lat:36.0671, lon:120.3826, slug:'qingdao_china'}},
+      {{name:'톈진항',       lat:38.9839, lon:117.7408, slug:'tianjin_china'}},
+      {{name:'싱가포르항',   lat:1.2592,  lon:103.8198, slug:'singapore_singapore'}},
+      {{name:'포트클랑항',   lat:2.9938,  lon:101.3725, slug:'port_klang_malaysia'}},
+      {{name:'홍콩항',       lat:22.2855, lon:114.1577, slug:'hong_kong_harbour'}},
+      {{name:'가오슝항',     lat:22.6273, lon:120.3014, slug:'kaohsiung_taiwan'}},
+      {{name:'요코하마항',   lat:35.4437, lon:139.6380, slug:'yokohama_japan'}},
+      {{name:'나고야항',     lat:35.0614, lon:136.8837, slug:'nagoya_japan'}},
+      {{name:'고베항',       lat:34.6778, lon:135.1960, slug:'kobe_japan'}},
+      // ── SM 계열사 원자재 기항 추정 (벌크·LNG)
+      {{name:'호주 헤이포인트항', lat:-21.2833, lon:149.3000, slug:'hay_point_australia'}},
+      {{name:'포트헤들랜드항',    lat:-20.3167, lon:118.5667, slug:'port_hedland_australia'}},
+      {{name:'리처드만항',        lat:-33.8688, lon:151.2093, slug:'sydney_australia'}},
+      {{name:'카타르 라스라판항', lat:25.9000,  lon:51.5500,  slug:'doha_qatar'}},
+      {{name:'말레이시아 빈툴루항',lat:3.1667,  lon:113.0333, slug:'bintulu_malaysia'}},
+      // ── 유럽 주요 항구
+      {{name:'로테르담항',   lat:51.9412, lon:4.1213,   slug:'rotterdam_noordereiland'}},
+      {{name:'함부르크항',   lat:53.5461, lon:9.9688,   slug:'hamburg_germany'}},
+      {{name:'앤트워프항',   lat:51.2194, lon:4.4025,   slug:'antwerp_belgium'}},
+      {{name:'펠릭스토항',   lat:51.9608, lon:1.3514,   slug:'felixstowe_united_kingdom'}},
+      {{name:'르아브르항',   lat:49.4938, lon:0.1077,   slug:'le_havre_france'}},
+      // ── 중동·인도
+      {{name:'두바이항',     lat:25.2048, lon:55.2708,  slug:'dubai_creek'}},
+      {{name:'제벨알리항',   lat:24.9964, lon:55.0605,  slug:'jebel_ali_uae'}},
+      {{name:'뭄바이항',     lat:18.9322, lon:72.8358,  slug:'mumbai_india'}},
+      // ── 미주
+      {{name:'LA항',         lat:33.7361, lon:-118.2639, slug:'los_angeles_usa'}},
+      {{name:'롱비치항',     lat:33.7542, lon:-118.2165, slug:'long_beach_usa'}},
+      {{name:'뉴욕항',       lat:40.6892, lon:-74.0445,  slug:'new_york_usa'}},
+      {{name:'사바나항',     lat:31.9974, lon:-81.0982,  slug:'savannah_usa'}},
+      {{name:'밴쿠버항',     lat:49.2827, lon:-123.1207, slug:'vancouver_canada'}},
     ];
-    const STORE_KEY = 'klcsm_weather_cities';
-    function getCities() {{
-      try {{ const s = localStorage.getItem(STORE_KEY); return s ? JSON.parse(s) : DEFAULT_CITIES; }}
-      catch(e) {{ return DEFAULT_CITIES; }}
+
+    const DEFAULT_KEYS = ['부산항','싱가포르항','로테르담항'];
+    const STORE_KEY = 'klcsm_weather_keys';
+
+    function getKeys() {{
+      try {{ const s = localStorage.getItem(STORE_KEY); return s ? JSON.parse(s) : DEFAULT_KEYS; }}
+      catch(e) {{ return DEFAULT_KEYS; }}
     }}
-    function saveCities(arr) {{ try {{ localStorage.setItem(STORE_KEY, JSON.stringify(arr)); }} catch(e) {{}} }}
+    function saveKeys(arr) {{ try {{ localStorage.setItem(STORE_KEY, JSON.stringify(arr)); }} catch(e) {{}} }}
+    function getPort(name) {{ return PORT_LIST.find(p => p.name === name); }}
 
     async function fetchWeather(lat, lon) {{
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${{lat}}&longitude=${{lon}}&current=temperature_2m,weathercode&timezone=auto`;
@@ -1530,23 +1647,28 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     }}
 
     async function renderWeather() {{
-      const cities = getCities();
+      const keys = getKeys();
       const bar = document.getElementById('weatherBar');
       if (!bar) return;
-      bar.innerHTML = cities.map((c, i) => {{
-        const windyUrl = `https://www.windy.com/?${{c.lat}},${{c.lon}},9`;
+      bar.innerHTML = keys.map((k, i) => {{
+        const p = getPort(k);
+        if (!p) return '';
+        const wfUrl = `https://www.windfinder.com/forecast/${{p.slug}}`;
         return `<div class="weather-chip">
-          <a href="${{windyUrl}}" target="_blank" style="text-decoration:none;color:inherit;display:flex;flex-direction:column;align-items:center;gap:1px">
+          <a href="${{wfUrl}}" target="_blank" style="text-decoration:none;color:inherit;display:flex;flex-direction:column;align-items:center;gap:1px">
             <span class="weather-chip-icon" id="wicon-${{i}}">⏳</span>
-            <span class="weather-chip-name">${{c.name}}</span>
+            <span class="weather-chip-name">${{p.name}}</span>
             <span class="weather-chip-temp" id="wtemp-${{i}}">--°</span>
-            <span class="weather-chip-link">Windy ↗</span>
+            <span class="weather-chip-link">Windfinder ↗</span>
           </a>
         </div>`;
       }}).join('');
-      cities.forEach(async (c, i) => {{
+
+      keys.forEach(async (k, i) => {{
+        const p = getPort(k);
+        if (!p) return;
         try {{
-          const w = await fetchWeather(c.lat, c.lon);
+          const w = await fetchWeather(p.lat, p.lon);
           const icon = document.getElementById(`wicon-${{i}}`);
           const temp = document.getElementById(`wtemp-${{i}}`);
           if (icon) icon.textContent = WI[w.code] || '🌡️';
@@ -1562,14 +1684,21 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     const cancelBtn = document.getElementById('weatherModalCancel');
 
     function openModal() {{
-      const cities = getCities();
+      const keys = getKeys();
       const inp = document.getElementById('weatherCityInputs');
-      inp.innerHTML = cities.map((c, i) => `
+      const opts = PORT_LIST.map(p => `<option value="${{p.name}}">${{p.name}}</option>`).join('');
+      inp.innerHTML = [0,1,2].map(i => `
         <div class="weather-city-row">
-          <input id="wm-name-${{i}}" value="${{c.name}}" placeholder="도시명">
-          <input id="wm-lat-${{i}}" value="${{c.lat}}" placeholder="위도" style="width:80px">
-          <input id="wm-lon-${{i}}" value="${{c.lon}}" placeholder="경도" style="width:80px">
+          <span style="font-size:.72rem;color:#374151;min-width:32px">슬롯${{i+1}}</span>
+          <select id="wm-sel-${{i}}" style="flex:1;font-size:.75rem;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
+            ${{opts}}
+          </select>
         </div>`).join('');
+      // 현재 선택값 세팅
+      keys.forEach((k, i) => {{
+        const sel = document.getElementById(`wm-sel-${{i}}`);
+        if (sel) sel.value = k;
+      }});
       overlay.classList.add('open');
     }}
     function closeModal() {{ overlay.classList.remove('open'); }}
@@ -1578,14 +1707,8 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
     if (overlay) overlay.addEventListener('click', e => {{ if(e.target===overlay) closeModal(); }});
     if (saveBtn) saveBtn.addEventListener('click', () => {{
-      const cities = getCities();
-      cities.forEach((c, i) => {{
-        const name = document.getElementById(`wm-name-${{i}}`)?.value.trim();
-        const lat  = parseFloat(document.getElementById(`wm-lat-${{i}}`)?.value);
-        const lon  = parseFloat(document.getElementById(`wm-lon-${{i}}`)?.value);
-        if (name && !isNaN(lat) && !isNaN(lon)) cities[i] = {{name, lat, lon}};
-      }});
-      saveCities(cities);
+      const keys = [0,1,2].map(i => document.getElementById(`wm-sel-${{i}}`)?.value).filter(Boolean);
+      saveKeys(keys);
       closeModal();
       renderWeather();
     }});
@@ -1661,6 +1784,7 @@ if __name__ == "__main__":
 
     # SM뉴스: 매일 수집 (3일치 필터는 get_sm_news 내부에서 처리)
     sm_news = get_sm_news()
+    marine_warning = get_marine_warning()
 
     idx_cnt = sum(1 for v in indices.values() if v["value"] != "—")
     print(f"  지수: {idx_cnt}개 수집")
@@ -1672,7 +1796,7 @@ if __name__ == "__main__":
     print(f"  뉴스: 국내 {ko_cnt}건 / 해외 {en_cnt}건")
     print(f"  SM계열사 뉴스: {len(sm_news)}건")
 
-    html = build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news)
+    html = build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news, marine_warning)
     out  = Path(args.output) / "index.html"
     out.write_text(html, encoding="utf-8")
     print(f"  HTML 저장: {out.resolve()}")
