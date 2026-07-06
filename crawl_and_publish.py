@@ -635,20 +635,7 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news, ma
             f'<span>{_ok_icon} 현재 해상특보 없음 &nbsp;&middot;&nbsp; 남해·동해 해역 날씨</span>'
             f'<a href="https://www.weather.go.kr/w/ocean/warning.do" target="_blank" class="mw-link">기상청 ↗</a>'
             f'</div>'
-            f'<div class="mw-ports">'
-            f'<div class="mw-port-chip"><span class="mw-port-name">부산항</span>'
-            f'<span id="mw-busan-icon">⏳</span>'
-            f'<span id="mw-busan-temp">--°</span>'
-            f'<span id="mw-busan-wind" class="mw-wind"></span></div>'
-            f'<div class="mw-port-chip"><span class="mw-port-name">울산항</span>'
-            f'<span id="mw-ulsan-icon">⏳</span>'
-            f'<span id="mw-ulsan-temp">--°</span>'
-            f'<span id="mw-ulsan-wind" class="mw-wind"></span></div>'
-            f'<div class="mw-port-chip"><span class="mw-port-name">여수항</span>'
-            f'<span id="mw-yeosu-icon">⏳</span>'
-            f'<span id="mw-yeosu-temp">--°</span>'
-            f'<span id="mw-yeosu-wind" class="mw-wind"></span></div>'
-            f'</div>'
+            f'<div id="mw-busan-forecast" class="mw-forecast-wrap">불러오는 중...</div>'
             f'<div class="mw-note">{upd} KST 기준 &middot; 특보 발령 시 자동 표시</div>'
             f'</div>'
         )
@@ -819,11 +806,16 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .marine-warn-box.mw-clear .mw-header{{color:#166534}}
 .mw-item{{background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:.72rem}}
 .mw-typhoon{{background:#fca5a5;font-weight:600}}
-.mw-ports{{display:flex;gap:8px;flex-wrap:wrap;width:100%}}
-.mw-port-chip{{display:flex;align-items:center;gap:4px;padding:4px 10px;
-               background:#fff;border:1px solid #d1fae5;border-radius:8px;font-size:.73rem}}
-.mw-port-name{{font-weight:600;color:#065f46}}
-.mw-wind{{font-size:.68rem;color:#6b7280}}
+/* 부산항 예보 테이블 */
+.mw-forecast-wrap{{width:100%;overflow-x:auto;margin:4px 0}}
+.mw-table{{border-collapse:collapse;font-size:.72rem;width:100%;min-width:400px}}
+.mw-table th,.mw-table td{{text-align:center;padding:3px 6px;border-bottom:1px solid #f3f4f6;white-space:nowrap}}
+.mw-table thead th{{background:#f0fdf4;color:#065f46;font-weight:600;font-size:.7rem}}
+.mw-table .mw-row-label{{text-align:left;color:#6b7280;font-size:.68rem;font-weight:600;background:#f9fafb;white-space:nowrap}}
+.mw-temp{{color:#1e3a8a;font-weight:600}}
+.mw-precip-hi{{color:#dc2626;font-weight:700}}
+.mw-precip-mid{{color:#d97706}}
+.mw-wind-cell{{color:#374151}}
 .mw-link{{font-size:.68rem;color:#2563eb;text-decoration:none;margin-left:auto;white-space:nowrap}}
 .mw-link:hover{{text-decoration:underline}}
 .mw-note{{font-size:.65rem;color:#9ca3af;width:100%;margin-top:2px}}
@@ -1607,32 +1599,60 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     }});
   }}
 
-  // ── 부산·울산·여수 항만 날씨 (기상특보 없을 때 표시)
+  // ── 부산항 시간별 예보 테이블 (기상특보 없을 때)
   (function() {{
     const WI = {{0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',
       51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',
       71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'}};
-    const PORTS_KR = [
-      {{id:'busan', lat:35.1004, lon:129.0366}},
-      {{id:'ulsan', lat:35.5383, lon:129.3167}},
-      {{id:'yeosu', lat:34.7604, lon:127.6622}},
-    ];
-    PORTS_KR.forEach(async p => {{
-      const iconEl = document.getElementById(`mw-${{p.id}}-icon`);
-      const tempEl = document.getElementById(`mw-${{p.id}}-temp`);
-      const windEl = document.getElementById(`mw-${{p.id}}-wind`);
-      if (!iconEl) return;
+    const container = document.getElementById('mw-busan-forecast');
+    if (!container) return;
+    (async () => {{
       try {{
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${{p.lat}}&longitude=${{p.lon}}&current=temperature_2m,weathercode,windspeed_10m&timezone=Asia/Seoul`;
+        const url = 'https://api.open-meteo.com/v1/forecast'
+          + '?latitude=35.1004&longitude=129.0366'
+          + '&hourly=temperature_2m,weathercode,windspeed_10m,precipitation_probability'
+          + '&timezone=Asia/Seoul&forecast_days=1';
         const d = await (await fetch(url)).json();
-        const cur = d.current;
-        if (iconEl) iconEl.textContent = WI[cur.weathercode] || '🌡️';
-        if (tempEl) tempEl.textContent = `${{Math.round(cur.temperature_2m)}}°`;
-        if (windEl) windEl.textContent = `💨${{Math.round(cur.windspeed_10m)}}km/h`;
+        const h = d.hourly;
+        // 현재 시간 이후 8개 슬롯
+        const now = new Date();
+        const nowH = now.getHours();
+        const slots = [];
+        for (let i = 0; i < 24 && slots.length < 8; i++) {{
+          if (i >= nowH) slots.push(i);
+        }}
+        // 헤더행 (시간)
+        const timeRow = slots.map(i => `<th>${{i}}시</th>`).join('');
+        // 아이콘행
+        const iconRow = slots.map(i => `<td>${{WI[h.weathercode[i]] || '🌡️'}}</td>`).join('');
+        // 기온행
+        const tempRow = slots.map(i => `<td class="mw-temp">${{Math.round(h.temperature_2m[i])}}°</td>`).join('');
+        // 강수확률행
+        const precipRow = slots.map(i => {{
+          const pp = h.precipitation_probability[i];
+          const cls = pp >= 60 ? 'mw-precip-hi' : pp >= 30 ? 'mw-precip-mid' : '';
+          return `<td class="${{cls}}">${{pp || 0}}%</td>`;
+        }}).join('');
+        // 풍속행
+        const windRow = slots.map(i => `<td class="mw-wind-cell">${{Math.round(h.windspeed_10m[i])}}</td>`).join('');
+
+        container.innerHTML = `<table class="mw-table">
+          <thead><tr><th class="mw-row-label">부산항</th>${{timeRow}}</tr></thead>
+          <tbody>
+            <tr><td class="mw-row-label">날씨</td>${{iconRow}}</tr>
+            <tr><td class="mw-row-label">기온(°C)</td>${{tempRow}}</tr>
+            <tr><td class="mw-row-label">강수(%)</td>${{precipRow}}</tr>
+            <tr><td class="mw-row-label">풍속(km/h)</td>${{windRow}}</tr>
+          </tbody>
+        </table>
+        <div class="mw-note" style="margin-top:4px">
+          Open-Meteo · 부산항(35.10°N, 129.04°E) ·
+          <a href="https://www.windfinder.com/forecast/busan_port" target="_blank" style="color:#2563eb">Windfinder 상세 ↗</a>
+        </div>`;
       }} catch(e) {{
-        if (iconEl) iconEl.textContent = '--';
+        if (container) container.textContent = '날씨 데이터를 불러오는 중 오류가 발생했습니다.';
       }}
-    }});
+    }})();
   }})();
 
   // ── 날씨 위젯 (Open-Meteo + Windfinder 항구 날씨)
@@ -1642,45 +1662,45 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'}};
 
     // 주요 항구 목록 — SM 계열사 기항 추정 우선 + 세계 주요 항구
+    // Windfinder 검증된 슬러그만 사용, 나머지는 Windy 좌표 URL
     // [AI 예측 정보] SM 계열사 기항 항구는 사업 영역 기반 추론값
     const PORT_LIST = [
       // ── SM 계열사 핵심 기항 추정 (한국·동아시아)
-      {{name:'부산항',       lat:35.1004, lon:129.0366, slug:'busan_port'}},
-      {{name:'인천항',       lat:37.4563, lon:126.6225, slug:'incheon_south_korea'}},
-      {{name:'광양항',       lat:34.9139, lon:127.6950, slug:'gwangyang_south_korea'}},
-      {{name:'상하이항',     lat:31.1456, lon:121.8036, slug:'shanghai'}},
-      {{name:'닝보항',       lat:29.8683, lon:121.5440, slug:'ningbo_china'}},
-      {{name:'칭다오항',     lat:36.0671, lon:120.3826, slug:'qingdao_china'}},
-      {{name:'톈진항',       lat:38.9839, lon:117.7408, slug:'tianjin_china'}},
-      {{name:'싱가포르항',   lat:1.2592,  lon:103.8198, slug:'singapore_singapore'}},
-      {{name:'포트클랑항',   lat:2.9938,  lon:101.3725, slug:'port_klang_malaysia'}},
-      {{name:'홍콩항',       lat:22.2855, lon:114.1577, slug:'hong_kong_harbour'}},
-      {{name:'가오슝항',     lat:22.6273, lon:120.3014, slug:'kaohsiung_taiwan'}},
-      {{name:'요코하마항',   lat:35.4437, lon:139.6380, slug:'yokohama_japan'}},
-      {{name:'나고야항',     lat:35.0614, lon:136.8837, slug:'nagoya_japan'}},
-      {{name:'고베항',       lat:34.6778, lon:135.1960, slug:'kobe_japan'}},
-      // ── SM 계열사 원자재 기항 추정 (벌크·LNG)
-      {{name:'호주 헤이포인트항', lat:-21.2833, lon:149.3000, slug:'hay_point_australia'}},
-      {{name:'포트헤들랜드항',    lat:-20.3167, lon:118.5667, slug:'port_hedland_australia'}},
-      {{name:'리처드만항',        lat:-33.8688, lon:151.2093, slug:'sydney_australia'}},
-      {{name:'카타르 라스라판항', lat:25.9000,  lon:51.5500,  slug:'doha_qatar'}},
-      {{name:'말레이시아 빈툴루항',lat:3.1667,  lon:113.0333, slug:'bintulu_malaysia'}},
-      // ── 유럽 주요 항구
-      {{name:'로테르담항',   lat:51.9412, lon:4.1213,   slug:'rotterdam_noordereiland'}},
-      {{name:'함부르크항',   lat:53.5461, lon:9.9688,   slug:'hamburg_germany'}},
-      {{name:'앤트워프항',   lat:51.2194, lon:4.4025,   slug:'antwerp_belgium'}},
-      {{name:'펠릭스토항',   lat:51.9608, lon:1.3514,   slug:'felixstowe_united_kingdom'}},
-      {{name:'르아브르항',   lat:49.4938, lon:0.1077,   slug:'le_havre_france'}},
+      {{name:'부산항',         lat:35.1004, lon:129.0366, wf:'busan_port'}},
+      {{name:'인천항',         lat:37.4563, lon:126.6225, wf:'incheon_port'}},
+      {{name:'광양항',         lat:34.9139, lon:127.6950, wf:null}},
+      {{name:'상하이항',       lat:31.1456, lon:121.8036, wf:'shanghai'}},
+      {{name:'닝보항',         lat:29.8683, lon:121.5440, wf:null}},
+      {{name:'칭다오항',       lat:36.0671, lon:120.3826, wf:'qingdao'}},
+      {{name:'톈진항',         lat:38.9839, lon:117.7408, wf:null}},
+      {{name:'싱가포르항',     lat:1.2592,  lon:103.8198, wf:'singapore_singapore'}},
+      {{name:'포트클랑항',     lat:2.9938,  lon:101.3725, wf:'pelabuhan_klang_selangor_malaysia'}},
+      {{name:'홍콩항',         lat:22.2855, lon:114.1577, wf:'hong_kong_harbour'}},
+      {{name:'가오슝항',       lat:22.6273, lon:120.3014, wf:'kaohsiung_taiwan'}},
+      {{name:'요코하마항',     lat:35.4437, lon:139.6380, wf:'yokohama_japan'}},
+      {{name:'나고야항',       lat:35.0614, lon:136.8837, wf:null}},
+      {{name:'고베항',         lat:34.6778, lon:135.1960, wf:null}},
+      // ── SM 원자재 추정 (벌크·LNG)
+      {{name:'헤이포인트항',   lat:-21.2833, lon:149.3000, wf:null}},
+      {{name:'포트헤들랜드항', lat:-20.3167, lon:118.5667, wf:'port_hedland'}},
+      {{name:'라스라판항',     lat:25.9000,  lon:51.5500,  wf:null}},
+      {{name:'빈툴루항',       lat:3.1667,   lon:113.0333, wf:null}},
+      // ── 유럽
+      {{name:'로테르담항',     lat:51.9412, lon:4.1213,   wf:'rotterdam_noordereiland'}},
+      {{name:'함부르크항',     lat:53.5461, lon:9.9688,   wf:'hamburg_germany'}},
+      {{name:'앤트워프항',     lat:51.2194, lon:4.4025,   wf:null}},
+      {{name:'펠릭스토항',     lat:51.9608, lon:1.3514,   wf:null}},
+      {{name:'르아브르항',     lat:49.4938, lon:0.1077,   wf:null}},
       // ── 중동·인도
-      {{name:'두바이항',     lat:25.2048, lon:55.2708,  slug:'dubai_creek'}},
-      {{name:'제벨알리항',   lat:24.9964, lon:55.0605,  slug:'jebel_ali_uae'}},
-      {{name:'뭄바이항',     lat:18.9322, lon:72.8358,  slug:'mumbai_india'}},
+      {{name:'두바이항',       lat:25.2048, lon:55.2708,  wf:null}},
+      {{name:'제벨알리항',     lat:24.9964, lon:55.0605,  wf:'jebel_ali_beach'}},
+      {{name:'뭄바이항',       lat:18.9322, lon:72.8358,  wf:null}},
       // ── 미주
-      {{name:'LA항',         lat:33.7361, lon:-118.2639, slug:'los_angeles_usa'}},
-      {{name:'롱비치항',     lat:33.7542, lon:-118.2165, slug:'long_beach_usa'}},
-      {{name:'뉴욕항',       lat:40.6892, lon:-74.0445,  slug:'new_york_usa'}},
-      {{name:'사바나항',     lat:31.9974, lon:-81.0982,  slug:'savannah_usa'}},
-      {{name:'밴쿠버항',     lat:49.2827, lon:-123.1207, slug:'vancouver_canada'}},
+      {{name:'LA항',           lat:33.7361, lon:-118.2639, wf:null}},
+      {{name:'롱비치항',       lat:33.7542, lon:-118.2165, wf:null}},
+      {{name:'뉴욕항',         lat:40.6892, lon:-74.0445,  wf:null}},
+      {{name:'사바나항',       lat:31.9974, lon:-81.0982,  wf:null}},
+      {{name:'밴쿠버항',       lat:49.2827, lon:-123.1207, wf:null}},
     ];
 
     const DEFAULT_KEYS = ['부산항','싱가포르항','로테르담항'];
@@ -1707,7 +1727,9 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       bar.innerHTML = keys.map((k, i) => {{
         const p = getPort(k);
         if (!p) return '';
-        const wfUrl = `https://www.windfinder.com/forecast/${{p.slug}}`;
+        const wfUrl = p.wf
+          ? `https://www.windfinder.com/forecast/${{p.wf}}`
+          : `https://www.windy.com/${{p.lat}},${{p.lon}},12`;
         return `<div class="weather-chip">
           <a href="${{wfUrl}}" target="_blank" style="text-decoration:none;color:inherit;display:flex;flex-direction:column;align-items:center;gap:1px">
             <span class="weather-chip-icon" id="wicon-${{i}}">⏳</span>
