@@ -723,27 +723,38 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .brand-name{{font-size:1rem;font-weight:700;color:#1e3a8a;letter-spacing:-.5px}}
 .brand-sub{{font-size:.72rem;color:#6b7280}}
 
-/* 날씨+단어 래퍼 */
-.weather-word-wrap{{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0;margin-left:auto;max-width:420px}}
+/* 날씨+단어 래퍼 - 가로 배치 */
+.weather-word-wrap{{display:flex;flex-direction:row;align-items:flex-start;gap:10px;
+                    flex:1;min-width:0;margin-left:auto}}
 /* 날씨 바 */
-.weather-bar{{display:flex;gap:6px;flex-wrap:wrap}}
-.weather-chip{{display:flex;align-items:center;gap:5px;padding:4px 10px;
-              background:#f0f7ff;border:1px solid #dbeafe;border-radius:8px;
-              font-size:.72rem;color:#1e3a8a;cursor:pointer;white-space:nowrap;
-              position:relative}}
-.weather-chip:hover{{background:#dbeafe}}
-.weather-chip .wc-name{{font-weight:600}}
-.weather-chip .wc-temp{{color:#2563eb;font-weight:700}}
-.weather-chip .wc-desc{{color:#64748b;font-size:.68rem}}
-.weather-edit{{display:none;position:absolute;top:110%;left:0;z-index:50;
-               background:#fff;border:1px solid #e5e7eb;border-radius:8px;
-               padding:8px;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.1)}}
-.weather-chip:hover .weather-edit,
-.weather-chip.editing .weather-edit{{display:block}}
-.weather-edit input{{width:100%;font-size:.72rem;padding:3px 6px;border:1px solid #d1d5db;
-                     border-radius:4px;margin-bottom:4px}}
-.weather-edit button{{font-size:.7rem;padding:2px 8px;border-radius:4px;border:1px solid #3b82f6;
-                      background:#3b82f6;color:#fff;cursor:pointer;width:100%}}
+.weather-bar{{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start}}
+.weather-chip{{display:flex;flex-direction:column;align-items:center;
+              padding:8px 14px;background:#f0f7ff;border:1px solid #dbeafe;
+              border-radius:10px;font-size:.72rem;color:#1e3a8a;
+              white-space:nowrap;min-width:72px;text-align:center}}
+.weather-chip-icon{{font-size:1.4rem;line-height:1}}
+.weather-chip-name{{font-size:.68rem;font-weight:600;color:#374151;margin-top:1px}}
+.weather-chip-temp{{font-size:.9rem;font-weight:700;color:#2563eb}}
+.weather-chip-link{{font-size:.62rem;color:#93c5fd;text-decoration:none;margin-top:1px}}
+.weather-chip-link:hover{{color:#2563eb}}
+.weather-setting-btn{{background:none;border:none;cursor:pointer;color:#9ca3af;
+                       font-size:.75rem;padding:2px 4px;margin-left:2px;
+                       vertical-align:middle;line-height:1}}
+.weather-setting-btn:hover{{color:#374151}}
+/* 날씨 설정 모달 */
+.weather-modal-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200}}
+.weather-modal-overlay.open{{display:flex;align-items:center;justify-content:center}}
+.weather-modal{{background:#fff;border-radius:12px;padding:20px;width:320px;
+                box-shadow:0 8px 32px rgba(0,0,0,.15)}}
+.weather-modal-title{{font-size:.85rem;font-weight:700;color:#1e3a8a;margin-bottom:12px}}
+.weather-city-row{{display:flex;gap:6px;align-items:center;margin-bottom:6px}}
+.weather-city-row input{{flex:1;font-size:.75rem;padding:4px 8px;border:1px solid #d1d5db;
+                          border-radius:6px}}
+.weather-city-row span{{font-size:.68rem;color:#9ca3af;white-space:nowrap}}
+.weather-modal-btns{{display:flex;gap:6px;margin-top:12px;justify-content:flex-end}}
+.weather-modal-btns button{{font-size:.75rem;padding:5px 14px;border-radius:6px;
+                             cursor:pointer;border:1px solid #d1d5db}}
+.weather-modal-save{{background:#1e3a8a;color:#fff;border-color:#1e3a8a!important}}
 .word-box{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
            padding:.5rem 1rem;max-width:420px;min-width:0;margin-left:auto}}
 .word-header{{font-size:.62rem;font-weight:600;color:#9ca3af;
@@ -1046,10 +1057,23 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       <a class="lunch-cta" href="./lunch">🍱 식신e식권 식당 찾기</a>
     </div>
     <div class="weather-word-wrap">
-      <div class="weather-bar" id="weatherBar">
-        <!-- JS로 렌더링 -->
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        <div class="weather-bar" id="weatherBar"></div>
+        <button class="weather-setting-btn" id="weatherSettingBtn" title="날씨 지역 설정">⚙️</button>
       </div>
       {word_html}
+    </div>
+    <!-- 날씨 설정 모달 -->
+    <div class="weather-modal-overlay" id="weatherModalOverlay">
+      <div class="weather-modal">
+        <div class="weather-modal-title">🌍 날씨 지역 설정</div>
+        <div id="weatherCityInputs"></div>
+        <div style="font-size:.68rem;color:#9ca3af;margin-top:6px">위도·경도는 Google Maps에서 확인 가능</div>
+        <div class="weather-modal-btns">
+          <button id="weatherModalCancel">취소</button>
+          <button class="weather-modal-save" id="weatherModalSave">저장</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1481,19 +1505,15 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     }});
   }}
 
-  // ── 날씨 위젯 (Open-Meteo, API 키 불필요)
+  // ── 날씨 위젯 (Open-Meteo + Windy 연결)
   (function() {{
-    const WMO = {{0:'맑음',1:'대체로 맑음',2:'구름 조금',3:'흐림',45:'안개',48:'안개',
-      51:'이슬비',53:'이슬비',55:'이슬비',61:'비',63:'비',65:'강한 비',
-      71:'눈',73:'눈',75:'강한 눈',80:'소나기',81:'소나기',82:'강한 소나기',
-      95:'뇌우',96:'뇌우',99:'뇌우'}};
     const WI = {{0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',
       51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',
       71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'}};
     const DEFAULT_CITIES = [
       {{name:'부산', lat:35.1796, lon:129.0756}},
+      {{name:'상하이', lat:31.2304, lon:121.4737}},
       {{name:'싱가포르', lat:1.3521, lon:103.8198}},
-      {{name:'로테르담', lat:51.9225, lon:4.4792}},
     ];
     const STORE_KEY = 'klcsm_weather_cities';
     function getCities() {{
@@ -1513,20 +1533,17 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       const cities = getCities();
       const bar = document.getElementById('weatherBar');
       if (!bar) return;
-      bar.innerHTML = cities.map((c, i) =>
-        `<div class="weather-chip" id="wchip-${{i}}">
-          <span id="wicon-${{i}}">⏳</span>
-          <span class="wc-name">${{c.name}}</span>
-          <span class="wc-temp" id="wtemp-${{i}}">--°</span>
-          <div class="weather-edit">
-            <div style="font-size:.68rem;color:#6b7280;margin-bottom:3px">도시 수정</div>
-            <input id="wedit-name-${{i}}" value="${{c.name}}" placeholder="도시명">
-            <input id="wedit-lat-${{i}}" value="${{c.lat}}" placeholder="위도 (예: 35.17)">
-            <input id="wedit-lon-${{i}}" value="${{c.lon}}" placeholder="경도 (예: 129.07)">
-            <button onclick="saveWeatherCity(${{i}})">저장</button>
-          </div>
-        </div>`
-      ).join('');
+      bar.innerHTML = cities.map((c, i) => {{
+        const windyUrl = `https://www.windy.com/?${{c.lat}},${{c.lon}},9`;
+        return `<div class="weather-chip">
+          <a href="${{windyUrl}}" target="_blank" style="text-decoration:none;color:inherit;display:flex;flex-direction:column;align-items:center;gap:1px">
+            <span class="weather-chip-icon" id="wicon-${{i}}">⏳</span>
+            <span class="weather-chip-name">${{c.name}}</span>
+            <span class="weather-chip-temp" id="wtemp-${{i}}">--°</span>
+            <span class="weather-chip-link">Windy ↗</span>
+          </a>
+        </div>`;
+      }}).join('');
       cities.forEach(async (c, i) => {{
         try {{
           const w = await fetchWeather(c.lat, c.lon);
@@ -1534,22 +1551,45 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
           const temp = document.getElementById(`wtemp-${{i}}`);
           if (icon) icon.textContent = WI[w.code] || '🌡️';
           if (temp) temp.textContent = `${{w.temp}}°`;
-        }} catch(e) {{
-          const temp = document.getElementById(`wtemp-${{i}}`);
-          if (temp) temp.textContent = '--°';
-        }}
+        }} catch(e) {{}}
       }});
     }}
-    window.saveWeatherCity = function(i) {{
+
+    // 설정 모달
+    const overlay = document.getElementById('weatherModalOverlay');
+    const settingBtn = document.getElementById('weatherSettingBtn');
+    const saveBtn = document.getElementById('weatherModalSave');
+    const cancelBtn = document.getElementById('weatherModalCancel');
+
+    function openModal() {{
       const cities = getCities();
-      const name = document.getElementById(`wedit-name-${{i}}`).value.trim();
-      const lat  = parseFloat(document.getElementById(`wedit-lat-${{i}}`).value);
-      const lon  = parseFloat(document.getElementById(`wedit-lon-${{i}}`).value);
-      if (!name || isNaN(lat) || isNaN(lon)) return;
-      cities[i] = {{name, lat, lon}};
+      const inp = document.getElementById('weatherCityInputs');
+      inp.innerHTML = cities.map((c, i) => `
+        <div class="weather-city-row">
+          <input id="wm-name-${{i}}" value="${{c.name}}" placeholder="도시명">
+          <input id="wm-lat-${{i}}" value="${{c.lat}}" placeholder="위도" style="width:80px">
+          <input id="wm-lon-${{i}}" value="${{c.lon}}" placeholder="경도" style="width:80px">
+        </div>`).join('');
+      overlay.classList.add('open');
+    }}
+    function closeModal() {{ overlay.classList.remove('open'); }}
+
+    if (settingBtn) settingBtn.addEventListener('click', openModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    if (overlay) overlay.addEventListener('click', e => {{ if(e.target===overlay) closeModal(); }});
+    if (saveBtn) saveBtn.addEventListener('click', () => {{
+      const cities = getCities();
+      cities.forEach((c, i) => {{
+        const name = document.getElementById(`wm-name-${{i}}`)?.value.trim();
+        const lat  = parseFloat(document.getElementById(`wm-lat-${{i}}`)?.value);
+        const lon  = parseFloat(document.getElementById(`wm-lon-${{i}}`)?.value);
+        if (name && !isNaN(lat) && !isNaN(lon)) cities[i] = {{name, lat, lon}};
+      }});
       saveCities(cities);
+      closeModal();
       renderWeather();
-    }};
+    }});
+
     renderWeather();
   }})();
 
