@@ -613,7 +613,7 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news, ma
     typhoon = mw.get("typhoon")
     upd = mw.get("updated", "")
     _warn_icon = "⚠️"
-    _ok_icon = "✅"
+    _ok_icon = "☀️"
     _ty_icon = "🌀"
     if warns or typhoon:
         warn_items = ""
@@ -1701,7 +1701,7 @@ tr:has(.mw-rl-icon){{background:#f9fafb}}
           <a href="https://www.windfinder.com/forecast/busan_port" target="_blank" style="color:#2563eb">Windfinder ↗</a>
           &nbsp;·&nbsp;
           <a href="https://marine.kma.go.kr/mmis/" target="_blank" style="color:#2563eb">해양기상정보포털 ↗</a>
-          &nbsp;·&nbsp; {upd} KST 기준 · 특보 발령 시 자동 표시
+
         </div>`;
       }} catch(e) {{
         if (container) container.textContent = '날씨 데이터를 불러오는 중 오류가 발생했습니다.';
