@@ -801,8 +801,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 /* 기상 섹션 full width */
 .marine-section{{width:100%;margin-bottom:.25rem}}
 /* 기상특보 박스 */
-.marine-warn-box{{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px;
-                  padding:.55rem .85rem;border-radius:8px;margin-bottom:.5rem;
+.marine-warn-box{{display:block;padding:.55rem .85rem;border-radius:8px;margin-bottom:.5rem;
                   background:#fff8f0;border:1px solid #fed7aa;font-size:.75rem}}
 .marine-warn-box.mw-clear{{background:#f0fdf4;border-color:#bbf7d0}}
 .mw-header{{display:flex;justify-content:space-between;align-items:center;
@@ -811,8 +810,9 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .mw-item{{background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:.72rem}}
 .mw-typhoon{{background:#fca5a5;font-weight:600}}
 /* 부산항 예보 테이블 */
+.mw-forecast-collapse{{width:100%}}
 .mw-forecast-wrap{{width:100%;overflow-x:auto;margin:4px 0}}
-.mw-table{{border-collapse:collapse;font-size:.76rem;width:max-content;min-width:100%}}
+.mw-table{{border-collapse:collapse;font-size:.76rem;width:100%;table-layout:fixed}}
 .mw-table th,.mw-table td{{text-align:center;padding:5px 9px;white-space:nowrap;border-right:1px solid #e5e7eb}}
 .mw-table tbody tr{{border-bottom:1px solid #f0f4f8}}
 /* 오늘 헤더: 짙은 네이비 */
@@ -1688,7 +1688,6 @@ tr:has(.mw-rl-icon){{background:#f9fafb}}
           </tbody>
         </table></div>
         <div class="mw-note">
-          Open-Meteo · 부산항 ·
           <a href="https://www.windfinder.com/forecast/busan_port" target="_blank" style="color:#2563eb">Windfinder ↗</a>
           &nbsp;·&nbsp;
           <a href="https://marine.kma.go.kr/mmis/" target="_blank" style="color:#2563eb">해양기상정보포털 ↗</a>
