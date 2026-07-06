@@ -611,26 +611,47 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news, ma
     mw = marine_warning
     warns = mw.get("warnings", [])
     typhoon = mw.get("typhoon")
+    upd = mw.get("updated", "")
+    _warn_icon = "⚠️"
+    _ok_icon = "✅"
+    _ty_icon = "🌀"
     if warns or typhoon:
         warn_items = ""
         if typhoon:
-            warn_items += f'<div class="mw-item mw-typhoon">{typhoon_icon} {{typhoon}}</div>'.format(typhoon=typhoon)
+            warn_items += f'<div class="mw-item mw-typhoon">{_ty_icon} {typhoon}</div>'
         for w_txt in warns[:3]:
-            warn_items += f'<div class="mw-item">{{w_txt}}</div>'.format(w_txt=w_txt)
+            warn_items += f'<div class="mw-item">{w_txt}</div>'
         marine_html = (
             f'<div class="marine-warn-box">'
-            f'<div class="mw-header"><span>{warn_icon} 기상청 해상특보</span>'
+            f'<div class="mw-header"><span>{_warn_icon} 기상청 해상특보</span>'
             f'<a href="https://www.weather.go.kr/w/ocean/warning.do" target="_blank" class="mw-link">기상청 ↗</a></div>'
             f'{warn_items}'
-            f'<div class="mw-note">업데이트: {{upd}} KST</div></div>'
-        ).format(warn_items=warn_items, upd=mw.get("updated",""))
+            f'<div class="mw-note">{upd} KST 기준</div></div>'
+        )
     else:
         marine_html = (
             f'<div class="marine-warn-box mw-clear">'
-            f'<span class="mw-ok">{ok_icon} 현재 해상특보 없음</span>'
+            f'<div class="mw-header">'
+            f'<span>{_ok_icon} 현재 해상특보 없음 &nbsp;&middot;&nbsp; 남해·동해 해역 날씨</span>'
             f'<a href="https://www.weather.go.kr/w/ocean/warning.do" target="_blank" class="mw-link">기상청 ↗</a>'
-            f'<span class="mw-note">{{upd}} KST 기준</span></div>'
-        ).format(upd=mw.get("updated",""))
+            f'</div>'
+            f'<div class="mw-ports">'
+            f'<div class="mw-port-chip"><span class="mw-port-name">부산항</span>'
+            f'<span id="mw-busan-icon">⏳</span>'
+            f'<span id="mw-busan-temp">--°</span>'
+            f'<span id="mw-busan-wind" class="mw-wind"></span></div>'
+            f'<div class="mw-port-chip"><span class="mw-port-name">울산항</span>'
+            f'<span id="mw-ulsan-icon">⏳</span>'
+            f'<span id="mw-ulsan-temp">--°</span>'
+            f'<span id="mw-ulsan-wind" class="mw-wind"></span></div>'
+            f'<div class="mw-port-chip"><span class="mw-port-name">여수항</span>'
+            f'<span id="mw-yeosu-icon">⏳</span>'
+            f'<span id="mw-yeosu-temp">--°</span>'
+            f'<span id="mw-yeosu-wind" class="mw-wind"></span></div>'
+            f'</div>'
+            f'<div class="mw-note">{upd} KST 기준 &middot; 특보 발령 시 자동 표시</div>'
+            f'</div>'
+        )
 
     # 오늘의 단어 박스 HTML
     w = WORD_OF_DAY
@@ -789,16 +810,21 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .weather-word-wrap{{display:flex;flex-direction:row;align-items:flex-start;gap:10px;
                     flex:1;min-width:0;margin-left:auto}}
 /* 기상특보 박스 */
-.marine-warn-box{{display:flex;flex-wrap:wrap;align-items:center;gap:6px;
-                  padding:.5rem .75rem;border-radius:8px;margin-bottom:.5rem;
+.marine-warn-box{{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px;
+                  padding:.55rem .85rem;border-radius:8px;margin-bottom:.5rem;
                   background:#fff8f0;border:1px solid #fed7aa;font-size:.75rem}}
 .marine-warn-box.mw-clear{{background:#f0fdf4;border-color:#bbf7d0}}
 .mw-header{{display:flex;justify-content:space-between;align-items:center;
-            width:100%;font-size:.75rem;font-weight:600;color:#9a3412;margin-bottom:3px}}
+            width:100%;font-size:.75rem;font-weight:600;color:#9a3412;margin-bottom:4px}}
+.marine-warn-box.mw-clear .mw-header{{color:#166534}}
 .mw-item{{background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:.72rem}}
 .mw-typhoon{{background:#fca5a5;font-weight:600}}
-.mw-ok{{font-size:.75rem;color:#166534;font-weight:600}}
-.mw-link{{font-size:.68rem;color:#2563eb;text-decoration:none;margin-left:auto}}
+.mw-ports{{display:flex;gap:8px;flex-wrap:wrap;width:100%}}
+.mw-port-chip{{display:flex;align-items:center;gap:4px;padding:4px 10px;
+               background:#fff;border:1px solid #d1fae5;border-radius:8px;font-size:.73rem}}
+.mw-port-name{{font-weight:600;color:#065f46}}
+.mw-wind{{font-size:.68rem;color:#6b7280}}
+.mw-link{{font-size:.68rem;color:#2563eb;text-decoration:none;margin-left:auto;white-space:nowrap}}
 .mw-link:hover{{text-decoration:underline}}
 .mw-note{{font-size:.65rem;color:#9ca3af;width:100%;margin-top:2px}}
 /* 날씨 바 */
@@ -1580,6 +1606,34 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       guideBtn.classList.toggle('open', isOpen);
     }});
   }}
+
+  // ── 부산·울산·여수 항만 날씨 (기상특보 없을 때 표시)
+  (function() {{
+    const WI = {{0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',
+      51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',
+      71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'}};
+    const PORTS_KR = [
+      {{id:'busan', lat:35.1004, lon:129.0366}},
+      {{id:'ulsan', lat:35.5383, lon:129.3167}},
+      {{id:'yeosu', lat:34.7604, lon:127.6622}},
+    ];
+    PORTS_KR.forEach(async p => {{
+      const iconEl = document.getElementById(`mw-${{p.id}}-icon`);
+      const tempEl = document.getElementById(`mw-${{p.id}}-temp`);
+      const windEl = document.getElementById(`mw-${{p.id}}-wind`);
+      if (!iconEl) return;
+      try {{
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${{p.lat}}&longitude=${{p.lon}}&current=temperature_2m,weathercode,windspeed_10m&timezone=Asia/Seoul`;
+        const d = await (await fetch(url)).json();
+        const cur = d.current;
+        if (iconEl) iconEl.textContent = WI[cur.weathercode] || '🌡️';
+        if (tempEl) tempEl.textContent = `${{Math.round(cur.temperature_2m)}}°`;
+        if (windEl) windEl.textContent = `💨${{Math.round(cur.windspeed_10m)}}km/h`;
+      }} catch(e) {{
+        if (iconEl) iconEl.textContent = '--';
+      }}
+    }});
+  }})();
 
   // ── 날씨 위젯 (Open-Meteo + Windfinder 항구 날씨)
   (function() {{
