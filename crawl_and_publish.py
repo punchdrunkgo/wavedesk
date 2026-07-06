@@ -633,11 +633,12 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news, ma
             f'<div class="marine-warn-box mw-clear">'
             f'<div class="mw-header" id="mw-header-toggle" style="cursor:pointer" onclick="toggleMwForecast()">'
             f'<span>{_ok_icon} 부산신항 &nbsp;·&nbsp; 현재 해상특보 없음 &nbsp;·&nbsp; <span id="mw-precip-summary">강수확률 계산 중...</span></span>'
-            f'<a href="https://marine.kma.go.kr/mmis/" target="_blank" class="mw-link">기상청 ↗</a>'
-            f'<span id="mw-toggle-btn" style="margin-left:6px;font-size:.68rem;color:#6b7280;cursor:pointer">▾</span>'
+            f'<span id="mw-toggle-btn" style="font-size:.68rem;color:#6b7280;cursor:pointer;margin-left:8px">▾</span>'
             f'</div>'
-            f'<div id="mw-forecast-collapse"><div id="mw-busan-forecast" class="mw-forecast-wrap">불러오는 중...</div></div>'
+            f'<div id="mw-forecast-collapse">'
+            f'<div id="mw-busan-forecast" class="mw-forecast-wrap">불러오는 중...</div>'
             f'<div class="mw-note">{upd} KST 기준 &middot; 특보 발령 시 자동 표시</div>'
+            f'</div>'
             f'</div>'
         )
 
@@ -797,6 +798,8 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 /* 날씨+단어 래퍼 - 가로 배치 */
 .weather-word-wrap{{display:flex;flex-direction:row;align-items:flex-start;gap:10px;
                     flex:1;min-width:0;margin-left:auto}}
+/* 기상 섹션 full width */
+.marine-section{{width:100%;margin-bottom:.25rem}}
 /* 기상특보 박스 */
 .marine-warn-box{{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px;
                   padding:.55rem .85rem;border-radius:8px;margin-bottom:.5rem;
@@ -1191,7 +1194,7 @@ tr:has(.mw-rl-icon){{background:#f9fafb}}
     </div>
   </div>
 
-  {marine_html}
+  <div class="marine-section">{marine_html}</div>
   <div class="sec-label">📊 해운 시황 지수</div>
   <div class="idx-grid">{idx_html}
   </div>
@@ -1834,6 +1837,11 @@ tr:has(.mw-rl-icon){{background:#f9fafb}}
   }})();
 
   // ── 부산신항 예보 접기/펼치기
+  // 기본 펼침 상태 초기화
+  (function() {{
+    const col = document.getElementById('mw-forecast-collapse');
+    if (col) col.style.display = 'block';
+  }})();
   window.toggleMwForecast = function() {{
     const col = document.getElementById('mw-forecast-collapse');
     const btn = document.getElementById('mw-toggle-btn');
