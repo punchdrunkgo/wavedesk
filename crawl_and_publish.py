@@ -367,30 +367,31 @@ def get_news():
 
     # 해외 — 15개 목표
     en_queries = [
-        ("shipping+freight+rates", 4),
+        ("shipping+freight+rates", 3),
         ("container+shipping+market", 3),
         ("bulk+carrier+shipping", 3),
-        ("tanker+freight+rate", 3),
-        ("maritime+industry+news", 3),
+        ("tanker+freight+rate", 2),
+        ("maritime+industry+news", 2),
         ("LNG+carrier+charter", 2),
     ]
     en_all = []
     for q, cnt in en_queries:
         en_all += fetch_google_news(q, "en", "해외뉴스", "Shipping News", cnt)
 
-    # 국내 — 15개 목표
+    # 국내 — 해운 우선 + 조선·물류·항만 포함, 12개 목표
     ko_core = [
-        ("해운+운임", 5),
-        ("컨테이너선+운임", 4),
-        ("벌크선+탱커+해운", 4),
-        ("해상운임+물동량", 3),
-        ("해운+선사", 3),
+        ("해운+운임", 4),       # 해운 최우선
+        ("컨테이너선+운임", 3),
+        ("벌크선+탱커+해운", 3),
+        ("해상운임+물동량", 2),
+        ("해운+선사", 2),
     ]
     ko_related = [
-        ("조선+선박+수주", 3),
-        ("LNG선+해운", 2),
-        ("항만+물류+수출", 2),
-        ("원양+해운", 2),
+        ("선박+조선+수주", 2),   # 조선
+        ("LNG선+벙커링", 2),
+        ("항만+물류+해운", 2),   # 항만·물류(해상 한정)
+        ("보세운송+해상물류", 1),
+        ("선박관리+해운", 2),
     ]
     ko_all = []
     for q, cnt in ko_core + ko_related:
@@ -423,8 +424,8 @@ def get_news():
         result.sort(key=lambda x: 0 if is_shipping(x["title"]) else 1)
         return result
 
-    ko_news = dedup_sort(ko_all)[:15]
-    en_news = dedup_sort(en_all)[:15]
+    ko_news = dedup_sort(ko_all)[:12]
+    en_news = dedup_sort(en_all)[:12]
 
     result = ko_news + en_news
     result = translate_titles(result)
@@ -715,7 +716,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .wrap{{max-width:1100px;margin:0 auto;padding:.75rem 1.25rem}}
 
 /* 헤더 */
-.header{{display:flex;flex-direction:row;align-items:center;gap:24px;
+.header{{display:flex;flex-direction:row;align-items:center;gap:36px;
          margin-bottom:.75rem;padding-bottom:.55rem;border-bottom:2px solid #2563eb}}
 .header-left{{display:flex;flex-direction:column;gap:6px;flex-shrink:0;min-width:160px}}
 .brand{{display:flex;align-items:baseline;gap:8px;flex-shrink:0;padding-top:3px}}
@@ -724,7 +725,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 
 /* 오늘의 단어 박스 */
 .word-box{{background:#fff;border:1px solid #e5e7eb;border-radius:10px;
-           padding:.5rem 1.1rem;flex:1;min-width:0;margin-left:auto}}
+           padding:.5rem 1rem;max-width:420px;min-width:0;margin-left:auto}}
 .word-header{{font-size:.62rem;font-weight:600;color:#9ca3af;
               text-transform:uppercase;letter-spacing:.5px;margin-bottom:.15rem}}
 .word-main{{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:.1rem}}
@@ -1468,6 +1469,13 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
         {{label: `EUA 선물 만기일 (${{y}})`, date: euaExpiry(y)}}
       );
     }});
+    // 해운·조선 주요 행사 (격년 개최, 확정 일정만)
+    const events = [
+      {{label: 'SMM 2026 — 함부르크 국제조선해양박람회', date: new Date(2026, 8, 1)}},
+      {{label: 'Nor-Shipping 2027 — 오슬로 국제해운박람회', date: new Date(2027, 5, 7)}},
+      {{label: 'Europort 2027 — 로테르담 국제해양산업전', date: new Date(2027, 10, 2)}},
+    ];
+    schedules.push(...events);
 
     // 오늘 이후 일정만 필터 + 날짜 오름차순 정렬 + 2027년까지
     const upcoming = schedules
