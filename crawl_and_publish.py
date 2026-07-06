@@ -623,7 +623,7 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news, ma
             warn_items += f'<div class="mw-item">{w_txt}</div>'
         marine_html = (
             f'<div class="marine-warn-box">'
-            f'<div class="mw-header"><span>{_warn_icon} 기상청 해상특보</span>'
+            f'<div class="mw-header" id="mw-header-toggle" style="cursor:pointer" onclick="toggleMwForecast()"><span>{_warn_icon} 부산신항 해상특보</span>'
             f'<a href="https://marine.kma.go.kr/mmis/" target="_blank" class="mw-link">기상청 ↗</a></div>'
             f'{warn_items}'
             f'<div class="mw-note">{upd} KST 기준</div></div>'
@@ -631,11 +631,12 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news, ma
     else:
         marine_html = (
             f'<div class="marine-warn-box mw-clear">'
-            f'<div class="mw-header">'
-            f'<span>{_ok_icon} 현재 해상특보 없음 &nbsp;&middot;&nbsp; 남해·동해 해역 날씨</span>'
+            f'<div class="mw-header" id="mw-header-toggle" style="cursor:pointer" onclick="toggleMwForecast()">'
+            f'<span>{_ok_icon} 부산신항 &nbsp;·&nbsp; 현재 해상특보 없음 &nbsp;·&nbsp; <span id="mw-precip-summary">강수확률 계산 중...</span></span>'
             f'<a href="https://marine.kma.go.kr/mmis/" target="_blank" class="mw-link">기상청 ↗</a>'
+            f'<span id="mw-toggle-btn" style="margin-left:6px;font-size:.68rem;color:#6b7280;cursor:pointer">▾</span>'
             f'</div>'
-            f'<div id="mw-busan-forecast" class="mw-forecast-wrap">불러오는 중...</div>'
+            f'<div id="mw-forecast-collapse"><div id="mw-busan-forecast" class="mw-forecast-wrap">불러오는 중...</div></div>'
             f'<div class="mw-note">{upd} KST 기준 &middot; 특보 발령 시 자동 표시</div>'
             f'</div>'
         )
@@ -1629,7 +1630,7 @@ tr:has(.mw-rl-icon){{background:#f9fafb}}
     (async () => {{
       try {{
         const url = 'https://api.open-meteo.com/v1/forecast'
-          + '?latitude=35.1004&longitude=129.0366'
+          + '?latitude=35.075&longitude=128.820'
           + '&hourly=temperature_2m,weathercode,windspeed_10m,precipitation_probability'
           + '&timezone=Asia/Seoul&forecast_days=2';
         const d = await (await fetch(url)).json();
@@ -1665,10 +1666,16 @@ tr:has(.mw-rl-icon){{background:#f9fafb}}
           return `<td class="${{cls}}">${{w}}</td>`;
         }});
 
+        // 강수확률 24시간 요약 계산
+        const next24 = h.precipitation_probability.slice(nowH, nowH+24);
+        const maxPP = next24.length ? Math.max(...next24) : 0;
+        const ppEl = document.getElementById('mw-precip-summary');
+        if (ppEl) ppEl.textContent = `24시간 내 최대 강수확률 ${{maxPP}}%`;
+
         container.innerHTML = `<div style="overflow-x:auto"><table class="mw-table">
           <thead>
             <tr><th class="mw-row-label"></th>${{dayRow}}</tr>
-            <tr><th class="mw-row-label">부산항</th>${{timeRow}}</tr>
+            <tr><th class="mw-row-label"></th>${{timeRow}}</tr>
           </thead>
           <tbody>
             <tr><td class="mw-row-label mw-rl-icon">날씨</td>${{iconRow}}</tr>
@@ -1700,7 +1707,7 @@ tr:has(.mw-rl-icon){{background:#f9fafb}}
     // [AI 예측 정보] SM 계열사 기항 항구는 사업 영역 기반 추론값
     const PORT_LIST = [
       // ── SM 계열사 핵심 기항 추정 (한국·동아시아)
-      {{name:'부산항',         lat:35.1004, lon:129.0366, wf:'busan_port'}},
+      {{name:'부산신항',        lat:35.075,  lon:128.820,  wf:'busan_port'}},
       {{name:'인천항',         lat:37.4563, lon:126.6225, wf:'incheon_port'}},
       {{name:'광양항',         lat:34.9139, lon:127.6950, wf:null}},
       {{name:'상하이항',       lat:31.1456, lon:121.8036, wf:'shanghai'}},
@@ -1825,6 +1832,16 @@ tr:has(.mw-rl-icon){{background:#f9fafb}}
 
     renderWeather();
   }})();
+
+  // ── 부산신항 예보 접기/펼치기
+  window.toggleMwForecast = function() {{
+    const col = document.getElementById('mw-forecast-collapse');
+    const btn = document.getElementById('mw-toggle-btn');
+    if (!col) return;
+    const isOpen = col.style.display !== 'none';
+    col.style.display = isOpen ? 'none' : 'block';
+    if (btn) btn.textContent = isOpen ? '▸' : '▾';
+  }};
 
   (function() {{
     const euaEl = document.getElementById('euaDday');
