@@ -357,7 +357,7 @@ def get_marine_warning():
     result = {"warnings": [], "typhoon": None, "updated": NOW.strftime("%H:%M")}
     try:
         # 해상특보 페이지 파싱
-        url = "https://www.weather.go.kr/w/ocean/warning.do"
+        url = "https://marine.kma.go.kr/mmis/"
         r = requests.get(url, headers=HEADERS, timeout=8)
         r.encoding = "utf-8"
         soup = BeautifulSoup(r.text, "lxml")
@@ -624,7 +624,7 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news, ma
         marine_html = (
             f'<div class="marine-warn-box">'
             f'<div class="mw-header"><span>{_warn_icon} 기상청 해상특보</span>'
-            f'<a href="https://www.weather.go.kr/w/ocean/warning.do" target="_blank" class="mw-link">기상청 ↗</a></div>'
+            f'<a href="https://marine.kma.go.kr/mmis/" target="_blank" class="mw-link">기상청 ↗</a></div>'
             f'{warn_items}'
             f'<div class="mw-note">{upd} KST 기준</div></div>'
         )
@@ -633,7 +633,7 @@ def build_html(indices, kdci_routes, kcci_routes, ncfi_routes, news, sm_news, ma
             f'<div class="marine-warn-box mw-clear">'
             f'<div class="mw-header">'
             f'<span>{_ok_icon} 현재 해상특보 없음 &nbsp;&middot;&nbsp; 남해·동해 해역 날씨</span>'
-            f'<a href="https://www.weather.go.kr/w/ocean/warning.do" target="_blank" class="mw-link">기상청 ↗</a>'
+            f'<a href="https://marine.kma.go.kr/mmis/" target="_blank" class="mw-link">기상청 ↗</a>'
             f'</div>'
             f'<div id="mw-busan-forecast" class="mw-forecast-wrap">불러오는 중...</div>'
             f'<div class="mw-note">{upd} KST 기준 &middot; 특보 발령 시 자동 표시</div>'
@@ -808,14 +808,34 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
 .mw-typhoon{{background:#fca5a5;font-weight:600}}
 /* 부산항 예보 테이블 */
 .mw-forecast-wrap{{width:100%;overflow-x:auto;margin:4px 0}}
-.mw-table{{border-collapse:collapse;font-size:.72rem;width:100%;min-width:400px}}
-.mw-table th,.mw-table td{{text-align:center;padding:3px 6px;border-bottom:1px solid #f3f4f6;white-space:nowrap}}
-.mw-table thead th{{background:#f0fdf4;color:#065f46;font-weight:600;font-size:.7rem}}
-.mw-table .mw-row-label{{text-align:left;color:#6b7280;font-size:.68rem;font-weight:600;background:#f9fafb;white-space:nowrap}}
-.mw-temp{{color:#1e3a8a;font-weight:600}}
-.mw-precip-hi{{color:#dc2626;font-weight:700}}
-.mw-precip-mid{{color:#d97706}}
-.mw-wind-cell{{color:#374151}}
+.mw-table{{border-collapse:collapse;font-size:.76rem;width:max-content;min-width:100%}}
+.mw-table th,.mw-table td{{text-align:center;padding:5px 9px;white-space:nowrap;border-right:1px solid #e5e7eb}}
+.mw-table tbody tr{{border-bottom:1px solid #f0f4f8}}
+/* 오늘 헤더: 짙은 네이비 */
+.mw-table thead th{{background:#1e3a8a;color:#fff;font-weight:700;font-size:.72rem}}
+/* 내일 헤더: 중간 파랑 */
+.mw-th-tmr{{background:#2563eb!important;color:#fff!important}}
+/* 오늘/내일 구분 행 */
+.mw-day-sep{{font-size:.7rem;font-weight:800;letter-spacing:.5px}}
+/* 행 레이블 */
+.mw-row-label{{text-align:left;color:#fff;font-size:.7rem;font-weight:700;
+               background:#374151!important;border-right:2px solid #6b7280;
+               padding:5px 8px;white-space:nowrap;min-width:54px}}
+.mw-rl-icon{{font-size:.8rem}}
+/* 날씨 아이콘 행 배경 */
+tr:has(.mw-rl-icon){{background:#f9fafb}}
+/* 기온 */
+.mw-hot{{color:#fff;background:#ef4444;font-weight:700;border-radius:4px;padding:2px 4px}}
+.mw-cold{{color:#fff;background:#3b82f6;font-weight:700;border-radius:4px;padding:2px 4px}}
+.mw-temp{{color:#1e3a8a;font-weight:700}}
+/* 강수 */
+.mw-precip-hi{{color:#fff;background:#2563eb;font-weight:700;border-radius:4px;padding:2px 4px}}
+.mw-precip-mid{{color:#1d4ed8;background:#dbeafe;font-weight:700;border-radius:4px}}
+.mw-precip-lo{{color:#9ca3af}}
+/* 풍속 */
+.mw-wind-hi{{color:#fff;background:#dc2626;font-weight:700;border-radius:4px;padding:2px 4px}}
+.mw-wind-mid{{color:#b45309;background:#fef3c7;font-weight:700;border-radius:4px}}
+.mw-wind-lo{{color:#374151;font-weight:500}}
 .mw-link{{font-size:.68rem;color:#2563eb;text-decoration:none;margin-left:auto;white-space:nowrap}}
 .mw-link:hover{{text-decoration:underline}}
 .mw-note{{font-size:.65rem;color:#9ca3af;width:100%;margin-top:2px}}
@@ -1611,43 +1631,57 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
         const url = 'https://api.open-meteo.com/v1/forecast'
           + '?latitude=35.1004&longitude=129.0366'
           + '&hourly=temperature_2m,weathercode,windspeed_10m,precipitation_probability'
-          + '&timezone=Asia/Seoul&forecast_days=1';
+          + '&timezone=Asia/Seoul&forecast_days=2';
         const d = await (await fetch(url)).json();
         const h = d.hourly;
-        // 현재 시간 이후 8개 슬롯
         const now = new Date();
         const nowH = now.getHours();
-        const slots = [];
-        for (let i = 0; i < 24 && slots.length < 8; i++) {{
-          if (i >= nowH) slots.push(i);
-        }}
-        // 헤더행 (시간)
-        const timeRow = slots.map(i => `<th>${{i}}시</th>`).join('');
-        // 아이콘행
-        const iconRow = slots.map(i => `<td>${{WI[h.weathercode[i]] || '🌡️'}}</td>`).join('');
-        // 기온행
-        const tempRow = slots.map(i => `<td class="mw-temp">${{Math.round(h.temperature_2m[i])}}°</td>`).join('');
-        // 강수확률행
-        const precipRow = slots.map(i => {{
-          const pp = h.precipitation_probability[i];
-          const cls = pp >= 60 ? 'mw-precip-hi' : pp >= 30 ? 'mw-precip-mid' : '';
-          return `<td class="${{cls}}">${{pp || 0}}%</td>`;
-        }}).join('');
-        // 풍속행
-        const windRow = slots.map(i => `<td class="mw-wind-cell">${{Math.round(h.windspeed_10m[i])}}</td>`).join('');
+        // 오늘: 현재시각 이후 3시간 간격, 내일: 6,9,12,15,18,21시
+        const todaySlots = [], tmrSlots = [];
+        // 오늘: 현재시 포함 3시간 간격
+        for (let i = nowH; i < 24; i += 3) todaySlots.push({{h:i, day:'오늘', idx:i}});
+        // 내일: 3시간 간격 (0~21시)
+        for (let i = 0; i <= 21; i += 3) tmrSlots.push({{h:i, day:'내일', idx:24+i}});
+        const allSlots = [...todaySlots, ...tmrSlots];
 
-        container.innerHTML = `<table class="mw-table">
-          <thead><tr><th class="mw-row-label">부산항</th>${{timeRow}}</tr></thead>
+        function mkRow(fn) {{ return allSlots.map(fn).join(''); }}
+
+        const timeRow = mkRow(s => `<th class="${{s.day==='내일'?'mw-th-tmr':''}}">${{s.h}}시</th>`);
+        const dayRow  = mkRow(s => `<th class="mw-day-sep ${{s.day==='내일'?'mw-th-tmr':''}}">${{s.day}}</th>`);
+        const iconRow = mkRow(s => `<td>${{WI[h.weathercode[s.idx]]||'🌡️'}}</td>`);
+        const tempRow = mkRow(s => {{
+          const t = Math.round(h.temperature_2m[s.idx]);
+          const cls = t>=30?'mw-hot':t<=5?'mw-cold':'mw-temp';
+          return `<td class="${{cls}}">${{t}}°</td>`;
+        }});
+        const precipRow = mkRow(s => {{
+          const pp = h.precipitation_probability[s.idx]||0;
+          const cls = pp>=60?'mw-precip-hi':pp>=30?'mw-precip-mid':'mw-precip-lo';
+          return `<td class="${{cls}}">${{pp}}%</td>`;
+        }});
+        const windRow = mkRow(s => {{
+          const w = Math.round(h.windspeed_10m[s.idx]);
+          const cls = w>=40?'mw-wind-hi':w>=20?'mw-wind-mid':'mw-wind-lo';
+          return `<td class="${{cls}}">${{w}}</td>`;
+        }});
+
+        container.innerHTML = `<div style="overflow-x:auto"><table class="mw-table">
+          <thead>
+            <tr><th class="mw-row-label"></th>${{dayRow}}</tr>
+            <tr><th class="mw-row-label">부산항</th>${{timeRow}}</tr>
+          </thead>
           <tbody>
-            <tr><td class="mw-row-label">날씨</td>${{iconRow}}</tr>
-            <tr><td class="mw-row-label">기온(°C)</td>${{tempRow}}</tr>
-            <tr><td class="mw-row-label">강수(%)</td>${{precipRow}}</tr>
-            <tr><td class="mw-row-label">풍속(km/h)</td>${{windRow}}</tr>
+            <tr><td class="mw-row-label mw-rl-icon">날씨</td>${{iconRow}}</tr>
+            <tr><td class="mw-row-label">기온°C</td>${{tempRow}}</tr>
+            <tr><td class="mw-row-label">강수%</td>${{precipRow}}</tr>
+            <tr><td class="mw-row-label">풍속m/s</td>${{windRow}}</tr>
           </tbody>
-        </table>
-        <div class="mw-note" style="margin-top:4px">
-          Open-Meteo · 부산항(35.10°N, 129.04°E) ·
-          <a href="https://www.windfinder.com/forecast/busan_port" target="_blank" style="color:#2563eb">Windfinder 상세 ↗</a>
+        </table></div>
+        <div class="mw-note">
+          Open-Meteo · 부산항 ·
+          <a href="https://www.windfinder.com/forecast/busan_port" target="_blank" style="color:#2563eb">Windfinder ↗</a>
+          &nbsp;·&nbsp;
+          <a href="https://marine.kma.go.kr/mmis/" target="_blank" style="color:#2563eb">해양기상정보포털 ↗</a>
         </div>`;
       }} catch(e) {{
         if (container) container.textContent = '날씨 데이터를 불러오는 중 오류가 발생했습니다.';
@@ -1703,7 +1737,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       {{name:'밴쿠버항',       lat:49.2827, lon:-123.1207, wf:null}},
     ];
 
-    const DEFAULT_KEYS = ['부산항','싱가포르항','로테르담항'];
+    const DEFAULT_KEYS = ['부산항','상하이항','싱가포르항','로테르담항'];
     const STORE_KEY = 'klcsm_weather_keys';
 
     function getKeys() {{
@@ -1763,9 +1797,9 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
       const keys = getKeys();
       const inp = document.getElementById('weatherCityInputs');
       const opts = PORT_LIST.map(p => `<option value="${{p.name}}">${{p.name}}</option>`).join('');
-      inp.innerHTML = [0,1,2].map(i => `
+      inp.innerHTML = [0,1,2,3].map(i => `
         <div class="weather-city-row">
-          <span style="font-size:.72rem;color:#374151;min-width:32px">슬롯${{i+1}}</span>
+          <span style="font-size:.72rem;color:#374151;min-width:36px">${{['1','2','3','4'][i]}}번</span>
           <select id="wm-sel-${{i}}" style="flex:1;font-size:.75rem;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
             ${{opts}}
           </select>
@@ -1783,7 +1817,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',san
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
     if (overlay) overlay.addEventListener('click', e => {{ if(e.target===overlay) closeModal(); }});
     if (saveBtn) saveBtn.addEventListener('click', () => {{
-      const keys = [0,1,2].map(i => document.getElementById(`wm-sel-${{i}}`)?.value).filter(Boolean);
+      const keys = [0,1,2,3].map(i => document.getElementById(`wm-sel-${{i}}`)?.value).filter(Boolean);
       saveKeys(keys);
       closeModal();
       renderWeather();
